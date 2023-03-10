@@ -15,21 +15,17 @@
 
 /*
 ** Ground Command Codes
-** TODO: Add additional commands required by the specific component
 */
 #define GENERIC_RADIO_NOOP_CC                 0
 #define GENERIC_RADIO_RESET_COUNTERS_CC       1
-#define GENERIC_RADIO_ENABLE_CC               2
-#define GENERIC_RADIO_DISABLE_CC              3
-#define GENERIC_RADIO_CONFIG_CC               4
+#define GENERIC_RADIO_CONFIG_CC               2
+#define GNEERIC_RADIO_PROXIMITY_CC            3
 
 
 /* 
 ** Telemetry Request Command Codes
-** TODO: Add additional commands required by the specific component
 */
 #define GENERIC_RADIO_REQ_HK_TLM              0
-#define GENERIC_RADIO_REQ_DATA_TLM            1
 
 
 /*
@@ -55,15 +51,15 @@ typedef struct
 
 
 /*
-** GENERIC_RADIO device telemetry definition
+** GENERIC_RADIO proximity forward command
 */
-typedef struct 
+typedef struct
 {
-    uint8   TlmHeader[CFE_SB_TLM_HDR_SIZE];
-    GENERIC_RADIO_Device_Data_tlm_t Generic_radio;
+    uint8    CmdHeader[CFE_SB_CMD_HDR_SIZE];
+    uint16   SCID;
+    uint8    Payload[GENERIC_RADIO_CFG_PROX_SIZE];
 
-} OS_PACK GENERIC_RADIO_Device_tlm_t;
-#define GENERIC_RADIO_DEVICE_TLM_LNGTH sizeof ( GENERIC_RADIO_Device_tlm_t )
+} GENERIC_RADIO_Proximity_cmd_t;
 
 
 /*
@@ -76,11 +72,8 @@ typedef struct
     uint8   CommandCount;
     uint8   DeviceErrorCount;
     uint8   DeviceCount;
-  
-    /*
-    ** TODO: Edit and add specific telemetry values to this struct
-    */
-    uint8   DeviceEnabled;
+    uint8   ForwardErrorCount;
+    uint8   ForwardCount;
     GENERIC_RADIO_Device_HK_tlm_t DeviceHK;
 
 } OS_PACK GENERIC_RADIO_Hk_tlm_t;

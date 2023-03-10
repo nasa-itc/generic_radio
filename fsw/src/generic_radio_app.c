@@ -29,23 +29,10 @@ static CFE_EVS_BinFilter_t  GENERIC_RADIO_EventFilters[] =
     {GENERIC_RADIO_CMD_ERR_EID,            0x0000},
     {GENERIC_RADIO_CMD_NOOP_INF_EID,       0x0000},
     {GENERIC_RADIO_CMD_RESET_INF_EID,      0x0000},
-    {GENERIC_RADIO_CMD_ENABLE_INF_EID,     0x0000},
-    {GENERIC_RADIO_ENABLE_INF_EID,         0x0000},
-    {GENERIC_RADIO_ENABLE_ERR_EID,         0x0000},
-    {GENERIC_RADIO_CMD_DISABLE_INF_EID,    0x0000},
-    {GENERIC_RADIO_DISABLE_INF_EID,        0x0000},
-    {GENERIC_RADIO_DISABLE_ERR_EID,        0x0000},
     {GENERIC_RADIO_CMD_CONFIG_INF_EID,     0x0000},
     {GENERIC_RADIO_CONFIG_INF_EID,         0x0000},
     {GENERIC_RADIO_CONFIG_ERR_EID,         0x0000},
-    {GENERIC_RADIO_DEVICE_TLM_ERR_EID,     0x0000},
     {GENERIC_RADIO_REQ_HK_ERR_EID,         0x0000},
-    {GENERIC_RADIO_REQ_DATA_ERR_EID,       0x0000},
-    {GENERIC_RADIO_UART_INIT_ERR_EID,      0x0000},
-    {GENERIC_RADIO_UART_CLOSE_ERR_EID,     0x0000},
-    {GENERIC_RADIO_UART_READ_ERR_EID,      0x0000},
-    {GENERIC_RADIO_UART_WRITE_ERR_EID,     0x0000},
-    {GENERIC_RADIO_UART_TIMEOUT_ERR_EID,   0x0000},
     /* TODO: Add additional event IDs (EID) to the table as created */
 };
 
@@ -115,9 +102,9 @@ void GENERIC_RADIO_AppMain(void)
     }
 
     /*
-    ** Disable component, which cleans up the interface, upon exit
+    ** Clean up interface upon exit
     */
-    GENERIC_RADIO_Disable();
+    socket_close(&GENERIC_RADIO_AppData.RadioSocket);
 
     /*
     ** Performance log exit stamp
@@ -187,10 +174,6 @@ int32 GENERIC_RADIO_AppInit(void)
         return status;
     }
 
-    /*
-    ** TODO: Subscribe to any other messages here
-    */
-
 
     /* 
     ** Initialize the published HK message - this HK message will contain the 
@@ -199,18 +182,6 @@ int32 GENERIC_RADIO_AppInit(void)
     CFE_SB_InitMsg(&GENERIC_RADIO_AppData.HkTelemetryPkt,
                    GENERIC_RADIO_HK_TLM_MID,
                    GENERIC_RADIO_HK_TLM_LNGTH, TRUE);
-
-    /*
-    ** Initialize the device packet message
-    ** This packet is specific to your application
-    */
-    CFE_SB_InitMsg(&GENERIC_RADIO_AppData.DevicePkt,
-                   GENERIC_RADIO_DEVICE_TLM_MID,
-                   GENERIC_RADIO_DEVICE_TLM_LNGTH, TRUE);
-
-    /*
-    ** TODO: Initialize any other messages that this app will publish
-    */
 
 
     /* 
@@ -222,10 +193,47 @@ int32 GENERIC_RADIO_AppInit(void)
     ** Initialize application data
     ** Note that counters are excluded as they were reset in the previous code block
     */
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled = GENERIC_RADIO_DEVICE_DISABLED;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceConfig = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceStatus = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.ProxSignal = 0;
+
+    /*
+    ** Initialize sockets
+    */
+    char fsw_ip[] = GENERIC_RADIO_CFG_FSW_IP;
+    char radio_ip[] = GENERIC_RADIO_CFG_DEVICE_IP;
+    int radio_port = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
+
+    GENERIC_RADIO_AppData.RadioSocket.sockfd = 0;
+    GENERIC_RADIO_AppData.RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
+    GENERIC_RADIO_AppData.RadioSocket.ip_address = fsw_ip;
+    GENERIC_RADIO_AppData.RadioSocket.address_family = ip_ver_4;
+    GENERIC_RADIO_AppData.RadioSocket.type = dgram;
+    GENERIC_RADIO_AppData.RadioSocket.category = client;
+    GENERIC_RADIO_AppData.RadioSocket.block = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.keep_alive = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.created = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.bound = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.listening = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.connected = FALSE;
+
+    status = socket_create(&GENERIC_RADIO_AppData.RadioSocket);
+    if (status != SOCKET_SUCCESS)
+    {
+        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Interface create error %d", status);
+        return status;
+    }
+    status = socket_connect(&GENERIC_RADIO_AppData.RadioSocket, radio_ip, radio_port);
+    if (status != SOCKET_SUCCESS)
+    {   
+        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Interface connect error %d", status);
+        return status;
+    }
+
+    /* 
+    ** Start device task
+    */
+    // TODO
 
     /* 
      ** Send an information event that the app has initialized. 
@@ -282,11 +290,11 @@ void GENERIC_RADIO_ProcessCommandPacket(void)
 
 /*
 ** Process ground commands
-** TODO: Add additional commands required by the specific component
 */
 void GENERIC_RADIO_ProcessGroundCommand(void)
 {
     int32 status = OS_SUCCESS;
+    CFE_SB_MsgPtr_t prox_msg;
 
     /*
     ** MsgId is only needed if the command code is not recognized. See default case
@@ -328,29 +336,6 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
             break;
 
         /*
-        ** Enable Command
-        */
-        case GENERIC_RADIO_ENABLE_CC:
-            if (GENERIC_RADIO_VerifyCmdLength(GENERIC_RADIO_AppData.MsgPtr, sizeof(GENERIC_RADIO_NoArgs_cmd_t)) == OS_SUCCESS)
-            {
-                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_ENABLE_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Enable command received");
-                GENERIC_RADIO_Enable();
-            }
-            break;
-
-        /*
-        ** Disable Command
-        */
-        case GENERIC_RADIO_DISABLE_CC:
-            if (GENERIC_RADIO_VerifyCmdLength(GENERIC_RADIO_AppData.MsgPtr, sizeof(GENERIC_RADIO_NoArgs_cmd_t)) == OS_SUCCESS)
-            {
-                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_DISABLE_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Disable command received");
-                GENERIC_RADIO_Disable();
-            }
-            break;
-
-        /*
-        ** TODO: Edit and add more command codes as appropriate for the application
         ** Set Configuration Command
         ** Note that this is an example of a command that has additional arguments
         */
@@ -359,7 +344,8 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
             {
                 CFE_EVS_SendEvent(GENERIC_RADIO_CMD_CONFIG_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Configuration command received");
                 /* Command device to send HK */
-                status = GENERIC_RADIO_CommandDevice(GENERIC_RADIO_AppData.Generic_radioUart.handle, GENERIC_RADIO_DEVICE_CFG_CMD, ((GENERIC_RADIO_Config_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->DeviceCfg);
+                status = GENERIC_RADIO_SetConfiguration(&GENERIC_RADIO_AppData.RadioSocket,
+                     ((GENERIC_RADIO_Config_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->DeviceCfg);
                 if (status == OS_SUCCESS)
                 {
                     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
@@ -370,6 +356,27 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
                 }
             }
             break;
+
+        /*
+        ** Radio Proximity Forward Command
+        ** Note that no verifications are performed prior to forwarding
+        */
+        case GNEERIC_RADIO_PROXIMITY_CC:
+            prox_msg = ((CFE_SB_MsgPtr_t) ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload);
+            status = GENERIC_RADIO_ProximityForward(&GENERIC_RADIO_AppData.RadioSocket, 
+                ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->SCID,
+                ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload,
+                CFE_SB_GetTotalMsgLength(prox_msg));
+            if (status == OS_SUCCESS)
+            {
+                GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
+            }
+            else
+            {
+                GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
+            }
+            break;
+
 
         /*
         ** Invalid Command Codes
@@ -387,7 +394,6 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
 
 /*
 ** Process Telemetry Request - Triggered in response to a telemetery request
-** TODO: Add additional telemetry required by the specific component
 */
 void GENERIC_RADIO_ProcessTelemetryRequest(void)
 {
@@ -402,10 +408,6 @@ void GENERIC_RADIO_ProcessTelemetryRequest(void)
     {
         case GENERIC_RADIO_REQ_HK_TLM:
             GENERIC_RADIO_ReportHousekeeping();
-            break;
-
-        case GENERIC_RADIO_REQ_DATA_TLM:
-            GENERIC_RADIO_ReportDeviceTelemetry();
             break;
 
         /*
@@ -429,56 +431,21 @@ void GENERIC_RADIO_ReportHousekeeping(void)
 {
     int32 status = OS_SUCCESS;
 
-    /* Check that device is enabled */
-    if (GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled == GENERIC_RADIO_DEVICE_ENABLED)
+    status = GENERIC_RADIO_RequestHK(&GENERIC_RADIO_AppData.RadioSocket, (GENERIC_RADIO_Device_HK_tlm_t*) &GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK);
+    if (status == OS_SUCCESS)
     {
-        status = GENERIC_RADIO_RequestHK(GENERIC_RADIO_AppData.Generic_radioUart.handle, (GENERIC_RADIO_Device_HK_tlm_t*) &GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK);
-        if (status == OS_SUCCESS)
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
-        }
-        else
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_REQ_HK_ERR_EID, CFE_EVS_ERROR, 
-                    "GENERIC_RADIO: Request device HK reported error %d", status);
-        }
+        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
     }
-    /* Intentionally do not report errors if disabled */
+    else
+    {
+        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
+        CFE_EVS_SendEvent(GENERIC_RADIO_REQ_HK_ERR_EID, CFE_EVS_ERROR, 
+                "GENERIC_RADIO: Request device HK reported error %d", status);
+    }
 
     /* Time stamp and publish housekeeping telemetry */
     CFE_SB_TimeStampMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt);
     CFE_SB_SendMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt);
-    return;
-}
-
-
-/*
-** Collect and Report Device Telemetry
-*/
-void GENERIC_RADIO_ReportDeviceTelemetry(void)
-{
-    int32 status = OS_SUCCESS;
-
-    /* Check that device is enabled */
-    if (GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled == GENERIC_RADIO_DEVICE_ENABLED)
-    {
-        status = GENERIC_RADIO_RequestData(GENERIC_RADIO_AppData.Generic_radioUart.handle, (GENERIC_RADIO_Device_Data_tlm_t*) &GENERIC_RADIO_AppData.DevicePkt.Generic_radio);
-        if (status == OS_SUCCESS)
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
-            /* Time stamp and publish data telemetry */
-            CFE_SB_TimeStampMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.DevicePkt);
-            CFE_SB_SendMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.DevicePkt);
-        }
-        else
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_REQ_DATA_ERR_EID, CFE_EVS_ERROR, 
-                    "GENERIC_RADIO: Request device data reported error %d", status);
-        }
-    }
-    /* Intentionally do not report errors if disabled */
     return;
 }
 
@@ -492,87 +459,10 @@ void GENERIC_RADIO_ResetCounters(void)
     GENERIC_RADIO_AppData.HkTelemetryPkt.CommandCount = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardErrorCount = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount = 0;
     return;
 } 
-
-
-/*
-** Enable Component
-** TODO: Edit for your specific component implementation
-*/
-void GENERIC_RADIO_Enable(void)
-{
-    int32 status = OS_SUCCESS;
-
-    /* Check that device is disabled */
-    if (GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled == GENERIC_RADIO_DEVICE_DISABLED)
-    {
-        /*
-        ** Initialize hardware interface data
-        ** TODO: Make specific to your application depending on protocol in use
-        ** Note that other components provide examples for the different protocols available
-        */ 
-        GENERIC_RADIO_AppData.Generic_radioUart.deviceString = GENERIC_RADIO_CFG_STRING;
-        GENERIC_RADIO_AppData.Generic_radioUart.handle = GENERIC_RADIO_CFG_HANDLE;
-        GENERIC_RADIO_AppData.Generic_radioUart.isOpen = PORT_CLOSED;
-        GENERIC_RADIO_AppData.Generic_radioUart.baud = GENERIC_RADIO_CFG_BAUDRATE_HZ;
-        GENERIC_RADIO_AppData.Generic_radioUart.access_option = uart_access_flag_RDWR;
-
-        /* Open device specific protocols */
-        status = uart_init_port(&GENERIC_RADIO_AppData.Generic_radioUart);
-        if (status == OS_SUCCESS)
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled = GENERIC_RADIO_DEVICE_ENABLED;
-            CFE_EVS_SendEvent(GENERIC_RADIO_ENABLE_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Device enabled");
-        }
-        else
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_UART_INIT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: UART port initialization error %d", status);
-        }
-    }
-    else
-    {
-        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-        CFE_EVS_SendEvent(GENERIC_RADIO_ENABLE_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Device enable failed, already enabled");
-    }
-    return;
-}
-
-
-/*
-** Disable Component
-** TODO: Edit for your specific component implementation
-*/
-void GENERIC_RADIO_Disable(void)
-{
-    int32 status = OS_SUCCESS;
-
-    /* Check that device is enabled */
-    if (GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled == GENERIC_RADIO_DEVICE_ENABLED)
-    {
-        /* Open device specific protocols */
-        status = uart_close_port(GENERIC_RADIO_AppData.Generic_radioUart.handle);
-        if (status == OS_SUCCESS)
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceEnabled = GENERIC_RADIO_DEVICE_DISABLED;
-            CFE_EVS_SendEvent(GENERIC_RADIO_DISABLE_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Device disabled");
-        }
-        else
-        {
-            GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_UART_CLOSE_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: UART port close error %d", status);
-        }
-    }
-    else
-    {
-        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-        CFE_EVS_SendEvent(GENERIC_RADIO_DISABLE_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Device disable failed, already disabled");
-    }
-    return;
-}
 
 
 /*
