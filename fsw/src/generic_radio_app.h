@@ -52,7 +52,7 @@ typedef struct
     /* 
     ** Device protocol
     */ 
-   socket_info_t RadioSocket;           /* Hardware protocol definition */
+    socket_info_t RadioSocket;          /* Hardware protocol definition */
 
 } GENERIC_RADIO_AppData_t;
 

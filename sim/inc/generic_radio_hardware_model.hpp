@@ -6,11 +6,16 @@
 */
 #include <map>
 
+#include <arpa/inet.h>	
 #include <boost/tuple/tuple.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <netinet/in.h>
+#include <thread>
+#include <string.h>
+#include <sys/socket.h>
 
 #include <Client/Bus.hpp>
-#include <Uart/Client/Uart.hpp> /* TODO: Change if your protocol bus is different (e.g. SPI, I2C, etc.) */
+
 
 #include <sim_i_data_provider.hpp>
 #include <generic_radio_data_point.hpp>
@@ -22,6 +27,9 @@
 */
 #define GENERIC_RADIO_SIM_SUCCESS 0
 #define GENERIC_RADIO_SIM_ERROR   1
+
+#define GENERIC_RADIO_UDP_SERVER  0
+#define GENERIC_RADIO_UDP_CLIENT  1
 
 
 /*
@@ -36,25 +44,40 @@ namespace Nos3
         /* Constructor and destructor */
         Generic_radioHardwareModel(const boost::property_tree::ptree& config);
         ~Generic_radioHardwareModel(void);
+        void run(void);
 
     private:
-        /* Private helper methods */
-        void create_generic_radio_hk(std::vector<uint8_t>& out_data); 
-        void create_generic_radio_data(std::vector<uint8_t>& out_data); 
-        void uart_read_callback(const uint8_t *buf, size_t len); /* Handle data the hardware receives from its protocol bus */
+        void create_generic_radio_hk(std::uint8_t* out_data); 
+        void process_radio_command(const uint8_t *buf, size_t len); /* Handle data the hardware receives */
         void command_callback(NosEngine::Common::Message msg); /* Handle backdoor commands and time tick to the simulator */
 
-        /* Private data members */
-        std::unique_ptr<NosEngine::Uart::Uart>              _uart_connection; /* TODO: Change if your protocol bus is different (e.g. SPI, I2C, etc.) */
-        std::unique_ptr<NosEngine::Client::Bus>             _time_bus; /* Standard */
+        typedef struct 
+        {
+            int sockfd;
+            std::string ip;
+            int port;
+        } udp_info_t;
 
+        int32_t udp_init(udp_info_t* sock, uint8_t server);
+        void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
+
+        udp_info_t                                          _fsw_ci;
+        udp_info_t                                          _fsw_to;
+        udp_info_t                                          _fsw_radio;
+        udp_info_t                                          _radio_cmd;
+        udp_info_t                                          _gsw_cmd;
+        udp_info_t                                          _gsw_tlm;
+        udp_info_t                                          _prox_fsw;
+        udp_info_t                                          _prox_rcv;
+
+        std::unique_ptr<NosEngine::Client::Bus>             _time_bus; /* Standard */
         SimIDataProvider*                                   _generic_radio_dp; /* Only needed if the sim has a data provider */
 
         /* Internal state data */
         std::uint8_t                                        _enabled;
         std::uint32_t                                       _count;
         std::uint32_t                                       _config;
-        std::uint32_t                                       _status;
+        std::uint32_t                                       _prox_signal;
     };
 }
 

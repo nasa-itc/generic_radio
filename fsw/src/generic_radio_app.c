@@ -205,7 +205,7 @@ int32 GENERIC_RADIO_AppInit(void)
     int radio_port = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
 
     GENERIC_RADIO_AppData.RadioSocket.sockfd = 0;
-    GENERIC_RADIO_AppData.RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
+    GENERIC_RADIO_AppData.RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
     GENERIC_RADIO_AppData.RadioSocket.ip_address = fsw_ip;
     GENERIC_RADIO_AppData.RadioSocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.RadioSocket.type = dgram;
@@ -231,7 +231,7 @@ int32 GENERIC_RADIO_AppInit(void)
     }
 
     /* 
-    ** Start device task
+    ** Start device tasks
     */
     // TODO
 

@@ -21,9 +21,9 @@ The radio is maintains various sockets for use:
   - Radio Primary to FSW
     * UDP 5011
   - FSW to Radio Proximity
-    * UDP 5012
+    * UDP 7010
   - Radio Proximity to FSW
-    * UDP 5013
+    * UDP 7011
   - GSW to Radio
     * UDP 6010
   - Radio to GSW

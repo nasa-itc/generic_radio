@@ -6,10 +6,10 @@ namespace Nos3
 
     extern ItcLogger::Logger *sim_logger;
 
-    Generic_radioHardwareModel::Generic_radioHardwareModel(const boost::property_tree::ptree& config) : SimIHardwareModel(config), _enabled(0), _count(0), _config(0), _status(0)
+    Generic_radioHardwareModel::Generic_radioHardwareModel(const boost::property_tree::ptree& config) : SimIHardwareModel(config), _enabled(0), _count(0), _config(0), _prox_signal(0)
     {
         /* Get the NOS engine connection string */
-        std::string connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001"); 
+        std::string connection_string = config.get("common.nos-connection-string", "tcp://0.0.0.0:12001"); 
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  NOS Engine connection string: %s.", connection_string.c_str());
 
         /* Get a data provider */
@@ -19,29 +19,45 @@ namespace Nos3
 
         /* Get on a protocol bus */
         /* Note: Initialized defaults in case value not found in config file */
-        std::string bus_name = "usart_29";
-        int node_port = 29;
+        _fsw_ci.ip = "0.0.0.0";
+        _fsw_ci.port = 5011;
+        _fsw_to.ip = "0.0.0.0";
+        _fsw_to.port = 5010;
+        _fsw_radio.ip = "0.0.0.0";
+        _fsw_radio.port = 5015;
+        _radio_cmd.ip = "0.0.0.0";
+        _radio_cmd.port = 5014;
+        _gsw_cmd.ip = "0.0.0.0";
+        _gsw_cmd.port = 6011;
+        _gsw_tlm.ip = "0.0.0.0";
+        _gsw_tlm.port = 6010;
+        _prox_fsw.ip = "0.0.0.0";
+        _prox_fsw.port = 7010;
+        _prox_rcv.ip = "0.0.0.0";
+        _prox_rcv.port = 7011;
+
         if (config.get_child_optional("simulator.hardware-model.connections")) 
         {
             /* Loop through the connections for hardware model */
             BOOST_FOREACH(const boost::property_tree::ptree::value_type &v, config.get_child("simulator.hardware-model.connections"))
             {
                 /* v.second is the child tree (v.first is the name of the child) */
-                if (v.second.get("type", "").compare("usart") == 0)
+                if (v.second.get("name", "").compare("fsw") == 0)
                 {
                     /* Configuration found */
-                    bus_name = v.second.get("bus-name", bus_name);
-                    node_port = v.second.get("node-port", node_port);
+                    _fsw_ci.ip = v.second.get("ip", _fsw_ci.ip);
+                    _fsw_ci.port = v.second.get("ci-port", _fsw_ci.port);
+                    
+                    _fsw_to.ip = v.second.get("ip", _fsw_to.ip);
+                    _fsw_to.port = v.second.get("to-port", _fsw_to.port);
+
+                    _fsw_radio.ip = v.second.get("ip", _fsw_radio.ip);
+                    _fsw_radio.port = v.second.get("radio-port", _fsw_radio.port);
                     break;
                 }
+                /* TODO: Other connections */
             }
         }
-        _uart_connection.reset(new NosEngine::Uart::Uart(_hub, config.get("simulator.name", "generic_radio_sim"), connection_string, bus_name));
-        _uart_connection->open(node_port);
-        sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on UART bus name %s, port %d.", bus_name.c_str(), node_port);
-    
-        /* Configure protocol callback */
-        _uart_connection->set_read_callback(std::bind(&Generic_radioHardwareModel::uart_read_callback, this, std::placeholders::_1, std::placeholders::_2));
 
         /* Get on the command bus*/
         std::string time_bus_name = "command";
@@ -63,6 +79,10 @@ namespace Nos3
         _time_bus.reset(new NosEngine::Client::Bus(_hub, connection_string, time_bus_name));
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
+        /* Forwarding threads */
+        std::thread* cmd_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
+        std::thread* tlm_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
     }
@@ -71,13 +91,57 @@ namespace Nos3
     Generic_radioHardwareModel::~Generic_radioHardwareModel(void)
     {        
         /* Close the protocol bus */
-        _uart_connection->close();
+        close(_fsw_radio.sockfd);
+        close(_radio_cmd.sockfd);
 
         /* Clean up the data provider */
         delete _generic_radio_dp;
         _generic_radio_dp = nullptr;
 
         /* The bus will clean up the time node */
+    }
+
+
+    void Generic_radioHardwareModel::run(void)
+    {
+        int status;
+        uint8_t sock_buffer[256];
+        size_t bytes_recvd;
+        size_t bytes_sent;
+
+        struct sockaddr_in radio_addr;
+        struct sockaddr_in fsw_addr;
+        int sockaddr_size = sizeof(struct sockaddr_in);
+
+        fsw_addr.sin_family = AF_INET;
+        fsw_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());
+        fsw_addr.sin_port = htons(_fsw_radio.port);
+
+        udp_init(&_radio_cmd, GENERIC_RADIO_UDP_SERVER);
+        udp_init(&_fsw_radio, GENERIC_RADIO_UDP_CLIENT);
+
+        sim_logger->debug("Generic_radioHardwareModel::run: %s:%d to %s:%d", _radio_cmd.ip.c_str(), _radio_cmd.port, _fsw_radio.ip.c_str(), _fsw_radio.port);
+
+        while(_keep_running)
+        {
+            bytes_recvd = 0;
+            bytes_sent = 0;
+
+            /* Receive */
+            status = recvfrom(_radio_cmd.sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &radio_addr, (socklen_t*) &sockaddr_size);
+            if (status != -1)
+            {
+                bytes_recvd = status;
+
+                /* Debug print */
+                sim_logger->debug("Generic_radioHardwareModel::run: %s:%d received %d bytes", _radio_cmd.ip.c_str(), _radio_cmd.port, bytes_recvd);
+
+                /* Process Command */
+                process_radio_command(sock_buffer, bytes_recvd);
+            }        
+        }
+        close(_radio_cmd.sockfd);
+        close(_fsw_radio.sockfd);
     }
 
 
@@ -94,7 +158,7 @@ namespace Nos3
         boost::to_upper(command);
         if (command.compare("HELP") == 0) 
         {
-            response = "Generic_radioHardwareModel::command_callback: Valid commands are HELP, ENABLE, DISABLE, STATUS=X, or STOP";
+            response = "Generic_radioHardwareModel::command_callback: Valid commands are HELP, ENABLE, DISABLE, or STOP";
         }
         else if (command.compare("ENABLE") == 0) 
         {
@@ -106,20 +170,8 @@ namespace Nos3
             _enabled = GENERIC_RADIO_SIM_ERROR;
             _count = 0;
             _config = 0;
-            _status = 0;
+            _prox_signal = 0;
             response = "Generic_radioHardwareModel::command_callback:  Disabled";
-        }
-        else if (command.substr(0,7).compare("STATUS=") == 0)
-        {
-            try
-            {
-                _status = std::stod(command.substr(7));
-                response = "Generic_radioHardwareModel::command_callback:  Status set";
-            }
-            catch (...)
-            {
-                response = "Generic_radioHardwareModel::command_callback:  Status invalid";
-            }            
         }
         else if (command.compare("STOP") == 0) 
         {
@@ -134,11 +186,97 @@ namespace Nos3
     }
 
 
-    /* Custom function to prepare the Generic_radio HK telemetry */
-    void Generic_radioHardwareModel::create_generic_radio_hk(std::vector<uint8_t>& out_data)
+    int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock, uint8_t server)
     {
-        /* Prepare data size */
-        out_data.resize(16, 0x00);
+        int status;
+        int optval;
+        socklen_t optlen;
+
+        /* Create */
+        sock->sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+        if(sock->sockfd == -1)
+        {
+            sim_logger->info("udp_init:  Socket create error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+        }
+
+        /* Bind */
+        if (server == GENERIC_RADIO_UDP_SERVER)
+        {
+            struct sockaddr_in saddr;
+            saddr.sin_family = AF_INET;
+            saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+            saddr.sin_port = htons(sock->port);   
+            status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+            if (status != 0)
+            {
+                sim_logger->info(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+            }
+            else
+            {
+                status = GENERIC_RADIO_SIM_ERROR;
+            }
+        }
+
+        /* Keep Alive */
+        optval = 1;
+        optlen = sizeof(optval);
+        setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
+
+        return status;
+    }
+
+
+    void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock)
+    {
+        int status;
+        uint8_t sock_buffer[8192];
+        size_t bytes_recvd;
+        size_t bytes_sent;
+
+        struct sockaddr_in rcv_addr;
+        struct sockaddr_in fwd_addr;
+        int sockaddr_size = sizeof(struct sockaddr_in);
+
+        fwd_addr.sin_family = AF_INET;
+        fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+        fwd_addr.sin_port = htons(fwd_sock->port);
+
+        udp_init(rcv_sock, GENERIC_RADIO_UDP_CLIENT);
+        udp_init(fwd_sock, GENERIC_RADIO_UDP_SERVER);
+
+        sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
+
+        while(_keep_running)
+        {
+            bytes_recvd = 0;
+            bytes_sent = 0;
+
+            /* Receive */
+            status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
+            if (status != -1)
+            {
+                bytes_recvd = status;
+
+                /* Debug print */
+                sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+
+                /* Forward */
+                status = sendto(fwd_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
+                if ((status == -1) || (status != bytes_recvd))
+                {
+                    sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+                }
+            }
+        }
+        close(rcv_sock->sockfd);
+        close(fwd_sock->sockfd);
+    }
+
+
+    /* Custom function to prepare the Generic_radio HK telemetry */
+    void Generic_radioHardwareModel::create_generic_radio_hk(std::uint8_t* out_data)
+    {
+        boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
 
         /* Streaming data header - 0xDEAD */
         out_data[0] = 0xDE;
@@ -156,11 +294,12 @@ namespace Nos3
         out_data[8] = (_config >>  8) & 0x000000FF; 
         out_data[9] =  _config & 0x000000FF;
 
-        /* Device Status */
-        out_data[10] = (_status >> 24) & 0x000000FF; 
-        out_data[11] = (_status >> 16) & 0x000000FF; 
-        out_data[12] = (_status >>  8) & 0x000000FF; 
-        out_data[13] =  _status & 0x000000FF;
+        /* Proximity Signal Strength */
+        /* TODO: Determine via 42 data */
+        out_data[10] = (_prox_signal >> 24) & 0x000000FF; 
+        out_data[11] = (_prox_signal >> 16) & 0x000000FF; 
+        out_data[12] = (_prox_signal >>  8) & 0x000000FF; 
+        out_data[13] =  _prox_signal & 0x000000FF;
 
         /* Streaming data trailer - 0xBEEF */
         out_data[14] = 0xBE;
@@ -168,68 +307,29 @@ namespace Nos3
     }
 
 
-    /* Custom function to prepare the Generic_radio Data */
-    void Generic_radioHardwareModel::create_generic_radio_data(std::vector<uint8_t>& out_data)
-    {
-        boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
-
-        /* Prepare data size */
-        out_data.resize(14, 0x00);
-
-        /* Streaming data header - 0xDEAD */
-        out_data[0] = 0xDE;
-        out_data[1] = 0xAD;
-        
-        /* Sequence count */
-        out_data[2] = (_count >> 24) & 0x000000FF; 
-        out_data[3] = (_count >> 16) & 0x000000FF; 
-        out_data[4] = (_count >>  8) & 0x000000FF; 
-        out_data[5] =  _count & 0x000000FF;
-        
-        /* 
-        ** Payload 
-        ** 
-        ** Device is big engian (most significant byte first)
-        ** Assuming data is valid regardless of dynamic / environmental data
-        ** Floating poing numbers are extremely problematic 
-        **   (https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
-        ** Most hardware transmits some type of unsigned integer (e.g. from an ADC), so that's what we've done
-        ** Scale each of the x, y, z (which are in the range [-1.0, 1.0]) by 32767, 
-        **   and add 32768 so that the result fits in a uint16
-        */
-        uint16_t x   = (uint16_t)(data_point->get_generic_radio_data_x()*32767.0 + 32768.0);
-        out_data[6]  = (x >> 8) & 0x00FF;
-        out_data[7]  =  x       & 0x00FF;
-        uint16_t y   = (uint16_t)(data_point->get_generic_radio_data_y()*32767.0 + 32768.0);
-        out_data[8]  = (y >> 8) & 0x00FF;
-        out_data[9]  =  y       & 0x00FF;
-        uint16_t z   = (uint16_t)(data_point->get_generic_radio_data_z()*32767.0 + 32768.0);
-        out_data[10] = (z >> 8) & 0x00FF;
-        out_data[11] =  z       & 0x00FF;
-
-        /* Streaming data trailer - 0xBEEF */
-        out_data[12] = 0xBE;
-        out_data[13] = 0xEF;
-    }
-
-
     /* Protocol callback */
-    void Generic_radioHardwareModel::uart_read_callback(const uint8_t *buf, size_t len)
+    void Generic_radioHardwareModel::process_radio_command(const uint8_t *buf, size_t len)
     {
-        std::vector<uint8_t> out_data; 
+        std::uint8_t out_data[16]; 
+        int status = GENERIC_RADIO_SIM_SUCCESS;
         std::uint8_t valid = GENERIC_RADIO_SIM_SUCCESS;
         
         std::uint32_t rcv_config;
 
+        struct sockaddr_in fwd_addr;
+        fwd_addr.sin_family = AF_INET;
+        fwd_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());
+        fwd_addr.sin_port = htons(_fsw_radio.port);
+
         /* Retrieve data and log in man readable format */
         std::vector<uint8_t> in_data(buf, buf + len);
-        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  REQUEST %s",
+        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  REQUEST %s",
             SimIHardwareModel::uint8_vector_to_hex_string(in_data).c_str());
 
         /* Check simulator is enabled */
         if (_enabled != GENERIC_RADIO_SIM_SUCCESS)
         {
-            sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Generic_radio sim disabled!");
+            sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Generic_radio sim disabled!");
             valid = GENERIC_RADIO_SIM_ERROR;
         }
         else
@@ -237,7 +337,7 @@ namespace Nos3
             /* Check if message is incorrect size */
             if (in_data.size() != 9)
             {
-                sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Invalid command size of %d received!", in_data.size());
+                sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Invalid command size of %d received!", in_data.size());
                 valid = GENERIC_RADIO_SIM_ERROR;
             }
             else
@@ -245,7 +345,7 @@ namespace Nos3
                 /* Check header - 0xDEAD */
                 if ((in_data[0] != 0xDE) || (in_data[1] !=0xAD))
                 {
-                    sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Header incorrect!");
+                    sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Header incorrect!");
                     valid = GENERIC_RADIO_SIM_ERROR;
                 }
                 else
@@ -253,7 +353,7 @@ namespace Nos3
                     /* Check trailer - 0xBEEF */
                     if ((in_data[7] != 0xBE) || (in_data[8] !=0xEF))
                     {
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Trailer incorrect!");
+                        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Trailer incorrect!");
                         valid = GENERIC_RADIO_SIM_ERROR;
                     }
                     else
@@ -270,52 +370,32 @@ namespace Nos3
                 switch (in_data[2])
                 {
                     case 0:
-                        /* NOOP */
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  NOOP command received!");
-                        break;
-
-                case 1:
                         /* Request HK */
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Send HK command received!");
+                        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Send HK command received!");
+                        _count++;
                         create_generic_radio_hk(out_data);
+                        status = sendto(_fsw_radio.sockfd, out_data, 16, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
+                        if ((status == -1) || (status != 16))
+                        {
+                            sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", _fsw_radio.ip.c_str(), _fsw_radio.port, status);
+                        }
                         break;
 
-                    case 2:
-                        /* Request data */
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Send data command received!");
-                        create_generic_radio_data(out_data);
-                        break;
-
-                    case 3:
+                    case 1:
                         /* Configuration */
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Configuration command received!");
+                        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Configuration command received!");
+                        _count++;
                         _config  = in_data[3] << 24;
                         _config |= in_data[4] << 16;
                         _config |= in_data[5] << 8;
                         _config |= in_data[6];
                         break;
-                    
+
                     default:
                         /* Unused command code */
-                        valid = GENERIC_RADIO_SIM_ERROR;
-                        sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  Unused command %d received!", in_data[2]);
+                        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Unused command %d received!", in_data[2]);
                         break;
                 }
-            }
-        }
-
-        /* Increment count and echo command since format valid */
-        if (valid == GENERIC_RADIO_SIM_SUCCESS)
-        {
-            _count++;
-            _uart_connection->write(&in_data[0], in_data.size());
-
-            /* Send response if existing */
-            if (out_data.size() > 0)
-            {
-                sim_logger->debug("Generic_radioHardwareModel::uart_read_callback:  REPLY %s",
-                    SimIHardwareModel::uint8_vector_to_hex_string(out_data).c_str());
-                _uart_connection->write(&out_data[0], out_data.size());
             }
         }
     }

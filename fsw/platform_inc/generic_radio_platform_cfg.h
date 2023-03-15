@@ -23,7 +23,7 @@
     #define GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO 5014
     #define GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW 5015
     /* Note: Debug flag disabled (commented out) by default */
-    //#define GENERIC_RADIO_CFG_DEBUG
+    #define GENERIC_RADIO_CFG_DEBUG
 #endif
 
 #endif /* _GENERIC_RADIO_PLATFORM_CFG_H_ */

@@ -65,7 +65,7 @@ int32_t GENERIC_RADIO_ProximityForward(socket_info_t* device, uint16_t scid, uin
     if(data_len > GENERIC_RADIO_CFG_PROX_SIZE)
     {
         #ifdef GENERIC_RADIO_CFG_DEBUG
-            OS_printf("GENERIC_RADIO_ProximityForward received data length of %d larger than maximum of %d, truncating!\n", data_len, GENERIC_RADIO_DEVICE_CFG_PROX_SIZE)
+            OS_printf("GENERIC_RADIO_ProximityForward received data length of %d larger than maximum of %d, truncating!\n", data_len, GENERIC_RADIO_CFG_PROX_SIZE);
         #endif
         data_len = GENERIC_RADIO_CFG_PROX_SIZE;
     }
@@ -118,6 +118,14 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t* device, GENERIC_RADIO_Device_HK_t
         #endif 
         status = OS_ERROR;
     }
+    if (status != OS_SUCCESS)
+    {
+        #ifdef GENERIC_RADIO_CFG_DEBUG
+            OS_printf("GENERIC_RADIO_RequestHK socket_send reported error of %d \n", status);
+        #endif 
+    }
+
+    OS_TaskDelay(10);
 
     /* Read response */
     status = socket_recv(device, read_data,
@@ -131,41 +139,59 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t* device, GENERIC_RADIO_Device_HK_t
     }
     else
     {
-        /* Verify data header and trailer */
-        if ((read_data[0] == GENERIC_RADIO_DEVICE_HDR_0) && 
-            (read_data[1] == GENERIC_RADIO_DEVICE_HDR_1) && 
-            (read_data[GENERIC_RADIO_DEVICE_HK_SIZE-2] == GENERIC_RADIO_DEVICE_TRAILER_0) && 
-            (read_data[GENERIC_RADIO_DEVICE_HK_SIZE-1] == GENERIC_RADIO_DEVICE_TRAILER_1) )
+        if (status != OS_SUCCESS)
         {
-            data->DeviceCounter  = read_data[2] << 24;
-            data->DeviceCounter |= read_data[3] << 16;
-            data->DeviceCounter |= read_data[4] << 8;
-            data->DeviceCounter |= read_data[5];
-
-            data->DeviceConfig  = read_data[6] << 24;
-            data->DeviceConfig |= read_data[7] << 16;
-            data->DeviceConfig |= read_data[8] << 8;
-            data->DeviceConfig |= read_data[9];
-
-            data->ProxSignal  = read_data[10] << 24;
-            data->ProxSignal |= read_data[11] << 16;
-            data->ProxSignal |= read_data[12] << 8;
-            data->ProxSignal |= read_data[13];
-
             #ifdef GENERIC_RADIO_CFG_DEBUG
-                OS_printf("  Header  = 0x%02x%02x  \n", read_data[0], read_data[1]);
-                OS_printf("  Counter = 0x%08x      \n", data->DeviceCounter);
-                OS_printf("  Config  = 0x%08x      \n", data->DeviceConfig);
-                OS_printf("  Status  = 0x%08x      \n", data->ProxSignal);
-                OS_printf("  Trailer = 0x%02x%02x  \n", read_data[14], read_data[15]);
-            #endif
+                OS_printf("GENERIC_RADIO_RequestHK socket_recv reported error of %d \n", status);
+            #endif 
         }
         else
         {
             #ifdef GENERIC_RADIO_CFG_DEBUG
-                OS_printf("GENERIC_RADIO_RequestHK: Invalid header / trailer detected! \n");
-            #endif 
-            status = OS_ERROR;
+                OS_printf("GENERIC_RADIO_RequestHK received: ");
+                for(int i = 0; i < (int) bytes; i++)
+                {
+                    OS_printf("0x%02x ", read_data[i]);
+                }
+                OS_printf("\n");
+            #endif
+            
+            /* Verify data header and trailer */
+            if ((read_data[0] == GENERIC_RADIO_DEVICE_HDR_0) && 
+                (read_data[1] == GENERIC_RADIO_DEVICE_HDR_1) && 
+                (read_data[GENERIC_RADIO_DEVICE_HK_SIZE-2] == GENERIC_RADIO_DEVICE_TRAILER_0) && 
+                (read_data[GENERIC_RADIO_DEVICE_HK_SIZE-1] == GENERIC_RADIO_DEVICE_TRAILER_1) )
+            {
+                data->DeviceCounter  = read_data[2] << 24;
+                data->DeviceCounter |= read_data[3] << 16;
+                data->DeviceCounter |= read_data[4] << 8;
+                data->DeviceCounter |= read_data[5];
+
+                data->DeviceConfig  = read_data[6] << 24;
+                data->DeviceConfig |= read_data[7] << 16;
+                data->DeviceConfig |= read_data[8] << 8;
+                data->DeviceConfig |= read_data[9];
+
+                data->ProxSignal  = read_data[10] << 24;
+                data->ProxSignal |= read_data[11] << 16;
+                data->ProxSignal |= read_data[12] << 8;
+                data->ProxSignal |= read_data[13];
+
+                #ifdef GENERIC_RADIO_CFG_DEBUG
+                    OS_printf("  Header  = 0x%02x%02x  \n", read_data[0], read_data[1]);
+                    OS_printf("  Counter = 0x%08x      \n", data->DeviceCounter);
+                    OS_printf("  Config  = 0x%08x      \n", data->DeviceConfig);
+                    OS_printf("  Status  = 0x%08x      \n", data->ProxSignal);
+                    OS_printf("  Trailer = 0x%02x%02x  \n", read_data[14], read_data[15]);
+                #endif
+            }
+            else
+            {
+                #ifdef GENERIC_RADIO_CFG_DEBUG
+                    OS_printf("GENERIC_RADIO_RequestHK: Invalid header / trailer detected! \n");
+                #endif 
+                status = OS_ERROR;
+            }
         }
     }
     return status;
