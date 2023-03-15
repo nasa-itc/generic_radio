@@ -20,17 +20,17 @@ namespace Nos3
         /* Get on a protocol bus */
         /* Note: Initialized defaults in case value not found in config file */
         _fsw_ci.ip = "0.0.0.0";
-        _fsw_ci.port = 5011;
+        _fsw_ci.port = 5010;
         _fsw_to.ip = "0.0.0.0";
-        _fsw_to.port = 5010;
+        _fsw_to.port = 5011;
         _fsw_radio.ip = "0.0.0.0";
         _fsw_radio.port = 5015;
         _radio_cmd.ip = "0.0.0.0";
         _radio_cmd.port = 5014;
         _gsw_cmd.ip = "0.0.0.0";
-        _gsw_cmd.port = 6011;
+        _gsw_cmd.port = 6010;
         _gsw_tlm.ip = "0.0.0.0";
-        _gsw_tlm.port = 6010;
+        _gsw_tlm.port = 6011;
         _prox_fsw.ip = "0.0.0.0";
         _prox_fsw.port = 7010;
         _prox_rcv.ip = "0.0.0.0";
@@ -110,15 +110,9 @@ namespace Nos3
         size_t bytes_sent;
 
         struct sockaddr_in radio_addr;
-        struct sockaddr_in fsw_addr;
         int sockaddr_size = sizeof(struct sockaddr_in);
 
-        fsw_addr.sin_family = AF_INET;
-        fsw_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());
-        fsw_addr.sin_port = htons(_fsw_radio.port);
-
         udp_init(&_radio_cmd, GENERIC_RADIO_UDP_SERVER);
-        udp_init(&_fsw_radio, GENERIC_RADIO_UDP_CLIENT);
 
         sim_logger->debug("Generic_radioHardwareModel::run: %s:%d to %s:%d", _radio_cmd.ip.c_str(), _radio_cmd.port, _fsw_radio.ip.c_str(), _fsw_radio.port);
 
@@ -141,7 +135,6 @@ namespace Nos3
             }        
         }
         close(_radio_cmd.sockfd);
-        close(_fsw_radio.sockfd);
     }
 
 
@@ -241,8 +234,7 @@ namespace Nos3
         fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
         fwd_addr.sin_port = htons(fwd_sock->port);
 
-        udp_init(rcv_sock, GENERIC_RADIO_UDP_CLIENT);
-        udp_init(fwd_sock, GENERIC_RADIO_UDP_SERVER);
+        udp_init(rcv_sock, GENERIC_RADIO_UDP_SERVER);
 
         sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
 
@@ -261,7 +253,7 @@ namespace Nos3
                 sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
 
                 /* Forward */
-                status = sendto(fwd_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
+                status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
                 if ((status == -1) || (status != bytes_recvd))
                 {
                     sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
@@ -269,7 +261,6 @@ namespace Nos3
             }
         }
         close(rcv_sock->sockfd);
-        close(fwd_sock->sockfd);
     }
 
 
@@ -356,11 +347,6 @@ namespace Nos3
                         sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Trailer incorrect!");
                         valid = GENERIC_RADIO_SIM_ERROR;
                     }
-                    else
-                    {
-                        /* Increment count as valid command format received */
-                        _count++;
-                    }
                 }
             }
 
@@ -374,10 +360,10 @@ namespace Nos3
                         sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Send HK command received!");
                         _count++;
                         create_generic_radio_hk(out_data);
-                        status = sendto(_fsw_radio.sockfd, out_data, 16, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
+                        status = sendto(_radio_cmd.sockfd, out_data, 16, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
                         if ((status == -1) || (status != 16))
                         {
-                            sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", _fsw_radio.ip.c_str(), _fsw_radio.port, status);
+                            sim_logger->debug("Generic_radioHardwareModel::process_radio_command: sendto returned %d", status);
                         }
                         break;
 

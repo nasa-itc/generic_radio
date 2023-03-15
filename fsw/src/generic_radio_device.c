@@ -125,15 +125,15 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t* device, GENERIC_RADIO_Device_HK_t
         #endif 
     }
 
-    OS_TaskDelay(10);
+    OS_TaskDelay(GENERIC_RADIO_CFG_DEVICE_DELAY_MS);
 
     /* Read response */
     status = socket_recv(device, read_data,
                          GENERIC_RADIO_DEVICE_HK_SIZE, &bytes);
-    if (bytes != GENERIC_RADIO_DEVICE_CMD_SIZE)
+    if (bytes != GENERIC_RADIO_DEVICE_HK_SIZE)
     {
         #ifdef GENERIC_RADIO_CFG_DEBUG
-            OS_printf("GENERIC_RADIO_RequestHK sent %d, but attempted %d \n", bytes, GENERIC_RADIO_DEVICE_CMD_SIZE);
+            OS_printf("GENERIC_RADIO_RequestHK received %d, but expected %d \n", bytes, GENERIC_RADIO_DEVICE_HK_SIZE);
         #endif 
         status = OS_ERROR;
     }
@@ -178,11 +178,11 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t* device, GENERIC_RADIO_Device_HK_t
                 data->ProxSignal |= read_data[13];
 
                 #ifdef GENERIC_RADIO_CFG_DEBUG
-                    OS_printf("  Header  = 0x%02x%02x  \n", read_data[0], read_data[1]);
-                    OS_printf("  Counter = 0x%08x      \n", data->DeviceCounter);
-                    OS_printf("  Config  = 0x%08x      \n", data->DeviceConfig);
-                    OS_printf("  Status  = 0x%08x      \n", data->ProxSignal);
-                    OS_printf("  Trailer = 0x%02x%02x  \n", read_data[14], read_data[15]);
+                    OS_printf("  Header     = 0x%02x%02x  \n", read_data[0], read_data[1]);
+                    OS_printf("  Counter    = 0x%08x      \n", data->DeviceCounter);
+                    OS_printf("  Config     = 0x%08x      \n", data->DeviceConfig);
+                    OS_printf("  ProxSignal = 0x%08x      \n", data->ProxSignal);
+                    OS_printf("  Trailer    = 0x%02x%02x  \n", read_data[14], read_data[15]);
                 #endif
             }
             else
