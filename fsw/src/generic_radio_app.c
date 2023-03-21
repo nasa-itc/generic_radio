@@ -32,8 +32,14 @@ static CFE_EVS_BinFilter_t  GENERIC_RADIO_EventFilters[] =
     {GENERIC_RADIO_CMD_CONFIG_INF_EID,     0x0000},
     {GENERIC_RADIO_CONFIG_INF_EID,         0x0000},
     {GENERIC_RADIO_CONFIG_ERR_EID,         0x0000},
+    {GENERIC_RADIO_DEVICE_TLM_ERR_EID,     0x0000},
     {GENERIC_RADIO_REQ_HK_ERR_EID,         0x0000},
-    /* TODO: Add additional event IDs (EID) to the table as created */
+    {GENERIC_RADIO_SOCK_OPEN_ERR_EID,      0x0000},
+    {GENERIC_RADIO_SOCK_CONNECT_ERR_EID,   0x0000},
+    {GENERIC_RADIO_PROX_OPEN_ERR_EID,      0x0000},
+    {GENERIC_RADIO_PROX_CONNECT_ERR_EID,   0x0000},
+    {GENERIC_RADIO_TASK_REG_ERR_EID,       0x0000},
+    {GENERIC_RADIO_TASK_REG_INF_EID,       0x0000},
 };
 
 
@@ -203,8 +209,9 @@ int32 GENERIC_RADIO_AppInit(void)
     char fsw_ip[] = GENERIC_RADIO_CFG_FSW_IP;
     char radio_ip[] = GENERIC_RADIO_CFG_DEVICE_IP;
     int radio_port = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
+    int prox_port = GENERIC_RADIO_CFG_UDP_FSW_TO_PROX;
 
-    GENERIC_RADIO_AppData.RadioSocket.sockfd = 0;
+    GENERIC_RADIO_AppData.RadioSocket.sockfd = -1;
     GENERIC_RADIO_AppData.RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
     GENERIC_RADIO_AppData.RadioSocket.ip_address = fsw_ip;
     GENERIC_RADIO_AppData.RadioSocket.address_family = ip_ver_4;
@@ -220,20 +227,54 @@ int32 GENERIC_RADIO_AppInit(void)
     status = socket_create(&GENERIC_RADIO_AppData.RadioSocket);
     if (status != SOCKET_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Interface create error %d", status);
+        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Radio interface create error %d", status);
         return status;
     }
     status = socket_connect(&GENERIC_RADIO_AppData.RadioSocket, radio_ip, radio_port);
     if (status != SOCKET_SUCCESS)
     {   
-        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Interface connect error %d", status);
+        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Radio interface connect error %d", status);
+        return status;
+    }
+
+    GENERIC_RADIO_AppData.ProxySocket.sockfd = -1;
+    GENERIC_RADIO_AppData.ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
+    GENERIC_RADIO_AppData.ProxySocket.ip_address = fsw_ip;
+    GENERIC_RADIO_AppData.ProxySocket.address_family = ip_ver_4;
+    GENERIC_RADIO_AppData.ProxySocket.type = dgram;
+    GENERIC_RADIO_AppData.ProxySocket.category = client;
+    GENERIC_RADIO_AppData.ProxySocket.block = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.keep_alive = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.created = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.bound = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.listening = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.connected = FALSE;
+
+    status = socket_create(&GENERIC_RADIO_AppData.ProxySocket);
+    if (status != SOCKET_SUCCESS)
+    {
+        CFE_EVS_SendEvent(GENERIC_RADIO_PROX_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Proximity interface create error %d", status);
+        return status;
+    }
+    status = socket_connect(&GENERIC_RADIO_AppData.ProxySocket, radio_ip, prox_port);
+    if (status != SOCKET_SUCCESS)
+    {   
+        CFE_EVS_SendEvent(GENERIC_RADIO_PROX_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Proxmity interface connect error %d", status);
         return status;
     }
 
     /* 
-    ** Start device tasks
+    ** Start device task
     */
-    // TODO
+    status = CFE_ES_CreateChildTask(&GENERIC_RADIO_AppData.DeviceID,
+                                    GENERIC_RADIO_DEVICE_NAME,
+                                    (void *) GENERIC_RADIO_ProxyTask, 0,
+                                    GENERIC_RADIO_DEVICE_STACK_SIZE,
+                                    GENERIC_RADIO_DEVICE_PRIORITY, 0);
+    if (status != CFE_SUCCESS)
+    {
+        return status;
+    }
 
     /* 
      ** Send an information event that the app has initialized. 
@@ -496,3 +537,59 @@ int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length)
     }
     return status;
 } 
+
+/*
+** Proxy Read Task
+*/
+int32 GENERIC_RADIO_ProxyTask(void)
+{
+    int32 status = OS_SUCCESS;
+    uint8 read_data[GENERIC_RADIO_CFG_PROX_SIZE] = {0};
+    size_t bytes = 0;
+
+    /*
+    ** Register the device task with Executive Services
+    */
+    status = CFE_ES_RegisterChildTask();
+    if(status != CFE_SUCCESS)
+    {
+        CFE_EVS_SendEvent(GENERIC_RADIO_TASK_REG_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Register device task error %d", status);
+        CFE_ES_ExitChildTask();
+        return status;
+    }
+    else
+    {
+        CFE_EVS_SendEvent(GENERIC_RADIO_TASK_REG_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Device task registration complete");
+    }
+
+    /*
+    ** Device Run Loop
+    */
+    while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == TRUE)
+    {
+        /* Zero read data */
+        CFE_PSP_MemSet(read_data, 0x00, GENERIC_RADIO_CFG_PROX_SIZE);
+
+        /* Read */
+        status = socket_recv(&GENERIC_RADIO_AppData.ProxySocket, read_data, GENERIC_RADIO_CFG_PROX_SIZE, &bytes);
+        if (status == OS_SUCCESS)
+        {
+            //#ifdef GENERIC_RADIO_CFG_DEBUG
+                OS_printf("GENERIC_RADIO_ProxyTask received: ");
+                for(int i = 0; i < (int) bytes; i++)
+                {
+                    OS_printf("0x%02x ", read_data[i]);
+                }
+                OS_printf("\n");
+            //#endif
+
+            /* Publish on software bus assuming all received data is correctly formatted */
+            CFE_SB_SendMsg((CFE_SB_Msg_t *) read_data);
+        }
+
+        /* Delay between loops */
+        OS_TaskDelay(GENERIC_RADIO_DEVICE_MS_LOOP_DELAY);
+    }
+
+    return status;
+}

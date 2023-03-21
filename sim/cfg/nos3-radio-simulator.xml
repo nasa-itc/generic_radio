@@ -13,8 +13,8 @@
             <connection>
                 <name>fsw</name>
                 <ip>0.0.0.0</ip>
-                <ci-port>5011</ci-port>
-                <to-port>5010</to-port>
+                <ci-port>5010</ci-port>
+                <to-port>5011</to-port>
                 <radio-port>5015</radio-port>
             </connection>
             <connection>

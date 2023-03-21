@@ -53,9 +53,34 @@ namespace Nos3
 
                     _fsw_radio.ip = v.second.get("ip", _fsw_radio.ip);
                     _fsw_radio.port = v.second.get("radio-port", _fsw_radio.port);
-                    break;
                 }
-                /* TODO: Other connections */
+
+                if (v.second.get("name", "").compare("radio") == 0)
+                {
+                    /* Configuration found */
+                    _radio_cmd.ip = v.second.get("ip", _radio_cmd.ip);
+                    _radio_cmd.port = v.second.get("cmd-port", _radio_cmd.port);
+                }
+
+                if (v.second.get("name", "").compare("gsw") == 0)
+                {
+                    /* Configuration found */
+                    _gsw_cmd.ip = v.second.get("ip", _gsw_cmd.ip);
+                    _gsw_cmd.port = v.second.get("cmd-port", _gsw_cmd.port);
+                    
+                    _gsw_tlm.ip = v.second.get("ip", _gsw_tlm.ip);
+                    _gsw_tlm.port = v.second.get("tlm-port", _gsw_tlm.port);
+                }
+
+                if (v.second.get("name", "").compare("prox") == 0)
+                {
+                    /* Configuration found */
+                    _prox_fsw.ip = v.second.get("ip", _prox_fsw.ip);
+                    _prox_fsw.port = v.second.get("fwd-port", _prox_fsw.port);
+                    
+                    _prox_rcv.ip = v.second.get("ip", _prox_rcv.ip);
+                    _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
+                }
             }
         }
 
@@ -82,6 +107,7 @@ namespace Nos3
         /* Forwarding threads */
         std::thread* cmd_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
         std::thread* tlm_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+        std::thread* prox_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
@@ -149,16 +175,16 @@ namespace Nos3
         std::string command = dbf.data;
         std::string response = "Generic_radioHardwareModel::command_callback:  INVALID COMMAND! (Try HELP)";
         boost::to_upper(command);
-        if (command.compare("HELP") == 0) 
+        if (command.compare(0,4,"HELP") == 0) 
         {
             response = "Generic_radioHardwareModel::command_callback: Valid commands are HELP, ENABLE, DISABLE, or STOP";
         }
-        else if (command.compare("ENABLE") == 0) 
+        else if (command.compare(0,6,"ENABLE") == 0) 
         {
             _enabled = GENERIC_RADIO_SIM_SUCCESS;
             response = "Generic_radioHardwareModel::command_callback:  Enabled";
         }
-        else if (command.compare("DISABLE") == 0) 
+        else if (command.compare(0,7,"DISABLE") == 0) 
         {
             _enabled = GENERIC_RADIO_SIM_ERROR;
             _count = 0;
@@ -166,12 +192,11 @@ namespace Nos3
             _prox_signal = 0;
             response = "Generic_radioHardwareModel::command_callback:  Disabled";
         }
-        else if (command.compare("STOP") == 0) 
+        else if (command.compare(0,4,"STOP") == 0) 
         {
             _keep_running = false;
             response = "Generic_radioHardwareModel::command_callback:  Stopping";
         }
-        /* TODO: Add anything additional commands here */
 
         /* Send a reply */
         sim_logger->info("Generic_radioHardwareModel::command_callback:  Sending reply: %s.", response.c_str());

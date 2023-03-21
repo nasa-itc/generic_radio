@@ -49,10 +49,16 @@ typedef struct
     CFE_SB_PipeId_t CmdPipe;            /* Pipe Id for HK command pipe */
     uint32 RunStatus;                   /* App run status for controlling the application state */
 
+    /*
+	** Device data 
+	*/
+	uint32 DeviceID;		            /* Device ID provided by CFS on initialization */
+
     /* 
     ** Device protocol
     */ 
-    socket_info_t RadioSocket;          /* Hardware protocol definition */
+    socket_info_t RadioSocket;
+    socket_info_t ProxySocket;
 
 } GENERIC_RADIO_AppData_t;
 
@@ -80,5 +86,6 @@ void  GENERIC_RADIO_ReportHousekeeping(void);
 void  GENERIC_RADIO_ReportDeviceTelemetry(void);
 void  GENERIC_RADIO_ResetCounters(void);
 int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length);
+int32 GENERIC_RADIO_ProxyTask(void);
 
 #endif /* _GENERIC_RADIO_APP_H_ */

@@ -40,10 +40,16 @@
 #define GENERIC_RADIO_REQ_HK_ERR_EID            31
 
 /* Device specific telemetry event IDs */
-#define GENERIC_RADIO_REQ_DATA_ERR_EID          32
 
 /* Hardware protocol event IDs */
 #define GENERIC_RADIO_SOCK_OPEN_ERR_EID         40
 #define GENERIC_RADIO_SOCK_CONNECT_ERR_EID      41
+#define GENERIC_RADIO_PROX_OPEN_ERR_EID         42
+#define GENERIC_RADIO_PROX_CONNECT_ERR_EID      43
+
+/* Device task even IDs */
+#define GENERIC_RADIO_TASK_REG_ERR_EID          50
+#define GENERIC_RADIO_TASK_REG_INF_EID          51
+
 
 #endif /* _GENERIC_RADIO_EVENTS_H_ */
