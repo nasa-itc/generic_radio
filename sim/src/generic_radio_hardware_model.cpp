@@ -31,10 +31,15 @@ namespace Nos3
         _gsw_cmd.port = 6010;
         _gsw_tlm.ip = "0.0.0.0";
         _gsw_tlm.port = 6011;
+
+        _prox_rcv.ip = "0.0.0.0";
+        _prox_rcv.port = 7012;
         _prox_fsw.ip = "0.0.0.0";
         _prox_fsw.port = 7010;
-        _prox_rcv.ip = "0.0.0.0";
-        _prox_rcv.port = 7011;
+        _prox_fwd.ip = "0.0.0.0";
+        _prox_fwd.port = 7011;
+        _prox_dest.ip = "0.0.0.0";
+        _prox_dest.port = 7013;
 
         if (config.get_child_optional("simulator.hardware-model.connections")) 
         {
@@ -53,6 +58,8 @@ namespace Nos3
 
                     _fsw_radio.ip = v.second.get("ip", _fsw_radio.ip);
                     _fsw_radio.port = v.second.get("radio-port", _fsw_radio.port);
+
+                    _prox_fsw.ip = v.second.get("ip", _prox_fsw.ip);
                 }
 
                 if (v.second.get("name", "").compare("radio") == 0)
@@ -60,6 +67,10 @@ namespace Nos3
                     /* Configuration found */
                     _radio_cmd.ip = v.second.get("ip", _radio_cmd.ip);
                     _radio_cmd.port = v.second.get("cmd-port", _radio_cmd.port);
+
+                    _prox_rcv.ip = v.second.get("ip", _prox_rcv.ip);
+
+                    _prox_fwd.ip = v.second.get("ip", _prox_fwd.ip);
                 }
 
                 if (v.second.get("name", "").compare("gsw") == 0)
@@ -75,11 +86,15 @@ namespace Nos3
                 if (v.second.get("name", "").compare("prox") == 0)
                 {
                     /* Configuration found */
-                    _prox_fsw.ip = v.second.get("ip", _prox_fsw.ip);
-                    _prox_fsw.port = v.second.get("fwd-port", _prox_fsw.port);
-                    
-                    _prox_rcv.ip = v.second.get("ip", _prox_rcv.ip);
                     _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
+
+                    _prox_fsw.ip = v.second.get("ip", _prox_fsw.ip);
+                    _prox_fsw.port = v.second.get("fsw-port", _prox_fsw.port);
+                    
+                    _prox_fwd.port = v.second.get("fwd-port", _prox_fwd.port);
+
+                    _prox_dest.ip = v.second.get("ip", _fsw_radio.ip);
+                    _prox_dest.port = v.second.get("dest-port", _fsw_radio.port);
                 }
             }
         }
@@ -107,7 +122,9 @@ namespace Nos3
         /* Forwarding threads */
         std::thread* cmd_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
         std::thread* tlm_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
-        std::thread* prox_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
+
+        std::thread* prox_rcv_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
+        std::thread* prox_fsw_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");

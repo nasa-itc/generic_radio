@@ -67,8 +67,10 @@ namespace Nos3
         udp_info_t                                          _radio_cmd;
         udp_info_t                                          _gsw_cmd;
         udp_info_t                                          _gsw_tlm;
-        udp_info_t                                          _prox_fsw;
         udp_info_t                                          _prox_rcv;
+        udp_info_t                                          _prox_fsw;
+        udp_info_t                                          _prox_fwd;
+        udp_info_t                                          _prox_dest;
 
         std::unique_ptr<NosEngine::Client::Bus>             _time_bus; /* Standard */
         SimIDataProvider*                                   _generic_radio_dp; /* Only needed if the sim has a data provider */

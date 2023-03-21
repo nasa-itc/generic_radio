@@ -404,17 +404,17 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         */
         case GNEERIC_RADIO_PROXIMITY_CC:
             prox_msg = ((CFE_SB_MsgPtr_t) ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload);
-            status = GENERIC_RADIO_ProximityForward(&GENERIC_RADIO_AppData.RadioSocket, 
+            status = GENERIC_RADIO_ProximityForward(&GENERIC_RADIO_AppData.ProxySocket, 
                 ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->SCID,
                 ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload,
                 CFE_SB_GetTotalMsgLength(prox_msg));
             if (status == OS_SUCCESS)
             {
-                GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
+                GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount++;
             }
             else
             {
-                GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
+                GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardErrorCount++;
             }
             break;
 
