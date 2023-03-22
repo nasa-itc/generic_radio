@@ -230,12 +230,6 @@ int32 GENERIC_RADIO_AppInit(void)
         CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Radio interface create error %d", status);
         return status;
     }
-    status = socket_connect(&GENERIC_RADIO_AppData.RadioSocket, radio_ip, radio_port);
-    if (status != SOCKET_SUCCESS)
-    {   
-        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Radio interface connect error %d", status);
-        return status;
-    }
 
     GENERIC_RADIO_AppData.ProxySocket.sockfd = -1;
     GENERIC_RADIO_AppData.ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
@@ -243,7 +237,7 @@ int32 GENERIC_RADIO_AppInit(void)
     GENERIC_RADIO_AppData.ProxySocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.ProxySocket.type = dgram;
     GENERIC_RADIO_AppData.ProxySocket.category = client;
-    GENERIC_RADIO_AppData.ProxySocket.block = TRUE;
+    GENERIC_RADIO_AppData.ProxySocket.block = FALSE;
     GENERIC_RADIO_AppData.ProxySocket.keep_alive = FALSE;
     GENERIC_RADIO_AppData.ProxySocket.created = FALSE;
     GENERIC_RADIO_AppData.ProxySocket.bound = FALSE;
@@ -256,12 +250,7 @@ int32 GENERIC_RADIO_AppInit(void)
         CFE_EVS_SendEvent(GENERIC_RADIO_PROX_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Proximity interface create error %d", status);
         return status;
     }
-    status = socket_connect(&GENERIC_RADIO_AppData.ProxySocket, radio_ip, prox_port);
-    if (status != SOCKET_SUCCESS)
-    {   
-        CFE_EVS_SendEvent(GENERIC_RADIO_PROX_CONNECT_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Proxmity interface connect error %d", status);
-        return status;
-    }
+
 
     /* 
     ** Start device task
@@ -569,22 +558,22 @@ int32 GENERIC_RADIO_ProxyTask(void)
     {
         /* Zero read data */
         CFE_PSP_MemSet(read_data, 0x00, GENERIC_RADIO_CFG_PROX_SIZE);
+        bytes = 0;
 
         /* Read */
-        status = socket_recv(&GENERIC_RADIO_AppData.ProxySocket, read_data, GENERIC_RADIO_CFG_PROX_SIZE, &bytes);
+        status = socket_recv(&GENERIC_RADIO_AppData.ProxySocket, read_data, sizeof(read_data), &bytes);
         
-            //#ifdef GENERIC_RADIO_CFG_DEBUG
-                OS_printf("GENERIC_RADIO_ProxyTask reported status %d and received: ", status);
+        if (status != SOCKET_TRY_AGAIN)
+        {
+            #ifdef GENERIC_RADIO_CFG_DEBUG
+                OS_printf("GENERIC_RADIO_ProxyTask reported status %d and received[%d]: ", status, bytes);
                 for(int i = 0; i < (int) bytes; i++)
                 {
                     OS_printf("0x%02x ", read_data[i]);
                 }
                 OS_printf("\n");
-            //#endif
+            #endif
         
-        if (status == OS_SUCCESS)
-        {
-
             /* Publish on software bus assuming all received data is correctly formatted */
             CFE_SB_SendMsg((CFE_SB_Msg_t *) read_data);
         }

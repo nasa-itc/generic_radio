@@ -156,7 +156,7 @@ namespace Nos3
 
         udp_init(&_radio_cmd, GENERIC_RADIO_UDP_SERVER);
 
-        sim_logger->debug("Generic_radioHardwareModel::run: %s:%d to %s:%d", _radio_cmd.ip.c_str(), _radio_cmd.port, _fsw_radio.ip.c_str(), _fsw_radio.port);
+        sim_logger->info("Generic_radioHardwareModel::run: %s:%d to %s:%d", _radio_cmd.ip.c_str(), _radio_cmd.port, _fsw_radio.ip.c_str(), _fsw_radio.port);
 
         while(_keep_running)
         {
@@ -243,7 +243,7 @@ namespace Nos3
             status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
             if (status != 0)
             {
-                sim_logger->info(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+                sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
             }
             else
             {
@@ -297,7 +297,7 @@ namespace Nos3
                 status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
                 if ((status == -1) || (status != bytes_recvd))
                 {
-                    sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+                    sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%d bytes", rcv_sock->ip.c_str(), rcv_sock->port, status, bytes_recvd);
                 }
             }
         }

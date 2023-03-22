@@ -55,31 +55,28 @@ int32_t GENERIC_RADIO_SetConfiguration(socket_info_t* device, uint32_t config)
 int32_t GENERIC_RADIO_ProximityForward(socket_info_t* device, uint16_t scid, uint8_t* data, uint16_t data_len)
 {
     int32_t status = OS_SUCCESS;
-    uint8_t write_data[GENERIC_RADIO_CFG_PROX_SIZE + 2] = {0};
     size_t  bytes_sent = 0;
 
     scid = CFE_MAKE_BIG16(scid);
 
-    /* Prepare command */
-    CFE_PSP_MemCpy(write_data, &scid, 2);
-    if(data_len > GENERIC_RADIO_CFG_PROX_SIZE)
-    {
-        #ifdef GENERIC_RADIO_CFG_DEBUG
-            OS_printf("GENERIC_RADIO_ProximityForward received data length of %d larger than maximum of %d, truncating!\n", data_len, GENERIC_RADIO_CFG_PROX_SIZE);
-        #endif
-        data_len = GENERIC_RADIO_CFG_PROX_SIZE;
-    }
-    CFE_PSP_MemCpy(&write_data[2], data, data_len);
+    #ifdef GENERIC_RADIO_CFG_DEBUG
+        OS_printf("GENERIC_RADIO_ProximityForward forwarding: ");
+        for(uint16_t i = 0; i < data_len; i++)
+        {
+            OS_printf("0x%02x ", data[i]);
+        }
+        OS_printf("\n");
+    #endif
 
     /* Write command */
-    status = socket_send(device, write_data,
-                         data_len + 2, &bytes_sent,
+    status = socket_send(device, data,
+                         data_len, &bytes_sent,
                          GENERIC_RADIO_CFG_DEVICE_IP, GENERIC_RADIO_CFG_UDP_FSW_TO_PROX);
-    if (bytes_sent != GENERIC_RADIO_DEVICE_CMD_SIZE)
+    if (bytes_sent != data_len)
     {
-        #ifdef GENERIC_RADIO_CFG_DEBUG
+        //#ifdef GENERIC_RADIO_CFG_DEBUG
             OS_printf("GENERIC_RADIO_ProximityForward sent %d, but attempted %d \n", bytes_sent, data_len + 2);
-        #endif 
+        //#endif
         status = OS_ERROR;
     }
     return status;
