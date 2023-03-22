@@ -243,7 +243,7 @@ int32 GENERIC_RADIO_AppInit(void)
     GENERIC_RADIO_AppData.ProxySocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.ProxySocket.type = dgram;
     GENERIC_RADIO_AppData.ProxySocket.category = client;
-    GENERIC_RADIO_AppData.ProxySocket.block = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.block = TRUE;
     GENERIC_RADIO_AppData.ProxySocket.keep_alive = FALSE;
     GENERIC_RADIO_AppData.ProxySocket.created = FALSE;
     GENERIC_RADIO_AppData.ProxySocket.bound = FALSE;
@@ -572,16 +572,18 @@ int32 GENERIC_RADIO_ProxyTask(void)
 
         /* Read */
         status = socket_recv(&GENERIC_RADIO_AppData.ProxySocket, read_data, GENERIC_RADIO_CFG_PROX_SIZE, &bytes);
-        if (status == OS_SUCCESS)
-        {
+        
             //#ifdef GENERIC_RADIO_CFG_DEBUG
-                OS_printf("GENERIC_RADIO_ProxyTask received: ");
+                OS_printf("GENERIC_RADIO_ProxyTask reported status %d and received: ", status);
                 for(int i = 0; i < (int) bytes; i++)
                 {
                     OS_printf("0x%02x ", read_data[i]);
                 }
                 OS_printf("\n");
             //#endif
+        
+        if (status == OS_SUCCESS)
+        {
 
             /* Publish on software bus assuming all received data is correctly formatted */
             CFE_SB_SendMsg((CFE_SB_Msg_t *) read_data);

@@ -88,13 +88,12 @@ namespace Nos3
                     /* Configuration found */
                     _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
 
-                    _prox_fsw.ip = v.second.get("ip", _prox_fsw.ip);
                     _prox_fsw.port = v.second.get("fsw-port", _prox_fsw.port);
                     
                     _prox_fwd.port = v.second.get("fwd-port", _prox_fwd.port);
 
-                    _prox_dest.ip = v.second.get("ip", _fsw_radio.ip);
-                    _prox_dest.port = v.second.get("dest-port", _fsw_radio.port);
+                    _prox_dest.ip = v.second.get("ip", _prox_dest.ip);
+                    _prox_dest.port = v.second.get("dest-port", _prox_dest.port);
                 }
             }
         }
