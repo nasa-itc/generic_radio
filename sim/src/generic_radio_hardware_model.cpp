@@ -53,7 +53,6 @@ namespace Nos3
                     _fsw_ci.ip = v.second.get("ip", _fsw_ci.ip);
                     _fsw_ci.port = v.second.get("ci-port", _fsw_ci.port);
                     
-                    _fsw_to.ip = v.second.get("ip", _fsw_to.ip);
                     _fsw_to.port = v.second.get("to-port", _fsw_to.port);
 
                     _fsw_radio.ip = v.second.get("ip", _fsw_radio.ip);
@@ -65,6 +64,8 @@ namespace Nos3
                 if (v.second.get("name", "").compare("radio") == 0)
                 {
                     /* Configuration found */
+                    _fsw_to.ip = v.second.get("ip", _fsw_to.ip);
+
                     _radio_cmd.ip = v.second.get("ip", _radio_cmd.ip);
                     _radio_cmd.port = v.second.get("cmd-port", _radio_cmd.port);
 
@@ -154,7 +155,7 @@ namespace Nos3
         struct sockaddr_in radio_addr;
         int sockaddr_size = sizeof(struct sockaddr_in);
 
-        udp_init(&_radio_cmd, GENERIC_RADIO_UDP_SERVER);
+        udp_init(&_radio_cmd);
 
         sim_logger->info("Generic_radioHardwareModel::run: %s:%d to %s:%d", _radio_cmd.ip.c_str(), _radio_cmd.port, _fsw_radio.ip.c_str(), _fsw_radio.port);
 
@@ -220,7 +221,7 @@ namespace Nos3
     }
 
 
-    int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock, uint8_t server)
+    int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
     {
         int status;
         int optval;
@@ -234,21 +235,18 @@ namespace Nos3
         }
 
         /* Bind */
-        if (server == GENERIC_RADIO_UDP_SERVER)
+        struct sockaddr_in saddr;
+        saddr.sin_family = AF_INET;
+        saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+        saddr.sin_port = htons(sock->port);   
+        status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+        if (status != 0)
         {
-            struct sockaddr_in saddr;
-            saddr.sin_family = AF_INET;
-            saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
-            saddr.sin_port = htons(sock->port);   
-            status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
-            if (status != 0)
-            {
-                sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-            }
-            else
-            {
-                status = GENERIC_RADIO_SIM_ERROR;
-            }
+            sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+        }
+        else
+        {
+            status = GENERIC_RADIO_SIM_ERROR;
         }
 
         /* Keep Alive */
@@ -275,7 +273,7 @@ namespace Nos3
         fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
         fwd_addr.sin_port = htons(fwd_sock->port);
 
-        udp_init(rcv_sock, GENERIC_RADIO_UDP_SERVER);
+        udp_init(rcv_sock);
 
         sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
 
@@ -306,9 +304,9 @@ namespace Nos3
 
 
     /* Custom function to prepare the Generic_radio HK telemetry */
-    void Generic_radioHardwareModel::create_generic_radio_hk(std::uint8_t* out_data)
+    void Generic_radioHardwareModel::create_generic_radio_hk(std::uint8_t out_data[16])
     {
-        boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
+        //boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
 
         /* Streaming data header - 0xDEAD */
         out_data[0] = 0xDE;

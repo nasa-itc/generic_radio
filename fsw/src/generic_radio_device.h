@@ -19,14 +19,12 @@
 /*
 ** Type definitions
 */
-#define GENERIC_RADIO_DEVICE_HDR              0xDEAD
 #define GENERIC_RADIO_DEVICE_HDR_0            0xDE
 #define GENERIC_RADIO_DEVICE_HDR_1            0xAD
 
 #define GENERIC_RADIO_DEVICE_REQ_HK_CMD       0x00
 #define GENERIC_RADIO_DEVICE_CFG_CMD          0x01
 
-#define GENERIC_RADIO_DEVICE_TRAILER          0xBEEF
 #define GENERIC_RADIO_DEVICE_TRAILER_0        0xBE
 #define GENERIC_RADIO_DEVICE_TRAILER_1        0xEF
 

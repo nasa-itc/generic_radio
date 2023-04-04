@@ -15,7 +15,7 @@ This section is essentially the device Interface Control Definition (ICD).
 ## Protocol
 The protocol in use is UDP sockets.
 The radio is maintains various sockets for use:
-* Communication Interface
+* Communication Interfaces
   - FSW to Radio Primary
     * UDP 5010
   - Radio Primary to FSW
@@ -28,7 +28,7 @@ The radio is maintains various sockets for use:
     * UDP 6010
   - Radio to GSW
     * UDP 6011
-* Radio Commands and Telemetry Interface
+* Radio Component Interface
   - FSW to Radio
     * UDP 5014
   - Radio to FSW
@@ -63,10 +63,13 @@ Response formats are as follows:
 # Radio Flight Software
 The FSW enables an abstraction of the device communicatications captured above.
 For the radio the FSW accepts the follopwing commands:
-* (0) NOOP
-* (1) Reset Counters
-* (2) Set Configuration
-* (3) Proximity Forward
+* GENERIC_RADIO_CMD_MID
+  - (0) NOOP
+  - (1) Reset Counters
+  - (2) Set Configuration
+  - (3) Proximity Forward
+* GENERIC_RADIO_REQ_HK_MID
+  - (0) Request Housekeeping
 
 
 # Configuration
@@ -78,12 +81,12 @@ configuration settings, as well as a summary on overriding parameters in mission
 
 ## Simulation
 The default configuration returns data initialized by the values in the simulation configuration settings used in the NOS3 simulator configuration file.
-The EPS configuration options for this are captured in [./sim/cfg/nos3-radio-simulator.xml](./sim/cfg/nos3-radio-simulator.xml) for ease of use.
+The radio configuration options for this are captured in [./sim/cfg/nos3-radio-simulator.xml](./sim/cfg/nos3-radio-simulator.xml) for ease of use.
 
 # Documentation
 If this generic_radio application had an ICD and/or test procedure, they would be linked here.
 
 ## Releases
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the tags on this repository.
-* v1.0.0 - X/Y/Z 
+* v1.0.0
   - Initial release

@@ -74,9 +74,9 @@ int32_t GENERIC_RADIO_ProximityForward(socket_info_t* device, uint16_t scid, uin
                          GENERIC_RADIO_CFG_DEVICE_IP, GENERIC_RADIO_CFG_UDP_FSW_TO_PROX);
     if (bytes_sent != data_len)
     {
-        //#ifdef GENERIC_RADIO_CFG_DEBUG
+        #ifdef GENERIC_RADIO_CFG_DEBUG
             OS_printf("GENERIC_RADIO_ProximityForward sent %d, but attempted %d \n", bytes_sent, data_len + 2);
-        //#endif
+        #endif
         status = OS_ERROR;
     }
     return status;

@@ -17,31 +17,6 @@
 */
 GENERIC_RADIO_AppData_t GENERIC_RADIO_AppData;
 
-static CFE_EVS_BinFilter_t  GENERIC_RADIO_EventFilters[] =
-{   /* Event ID    mask */
-    {GENERIC_RADIO_RESERVED_EID,           0x0000},
-    {GENERIC_RADIO_STARTUP_INF_EID,        0x0000},
-    {GENERIC_RADIO_LEN_ERR_EID,            0x0000},
-    {GENERIC_RADIO_PIPE_ERR_EID,           0x0000},
-    {GENERIC_RADIO_SUB_CMD_ERR_EID,        0x0000},
-    {GENERIC_RADIO_SUB_REQ_HK_ERR_EID,     0x0000},
-    {GENERIC_RADIO_PROCESS_CMD_ERR_EID,    0x0000},
-    {GENERIC_RADIO_CMD_ERR_EID,            0x0000},
-    {GENERIC_RADIO_CMD_NOOP_INF_EID,       0x0000},
-    {GENERIC_RADIO_CMD_RESET_INF_EID,      0x0000},
-    {GENERIC_RADIO_CMD_CONFIG_INF_EID,     0x0000},
-    {GENERIC_RADIO_CONFIG_INF_EID,         0x0000},
-    {GENERIC_RADIO_CONFIG_ERR_EID,         0x0000},
-    {GENERIC_RADIO_DEVICE_TLM_ERR_EID,     0x0000},
-    {GENERIC_RADIO_REQ_HK_ERR_EID,         0x0000},
-    {GENERIC_RADIO_SOCK_OPEN_ERR_EID,      0x0000},
-    {GENERIC_RADIO_SOCK_CONNECT_ERR_EID,   0x0000},
-    {GENERIC_RADIO_PROX_OPEN_ERR_EID,      0x0000},
-    {GENERIC_RADIO_PROX_CONNECT_ERR_EID,   0x0000},
-    {GENERIC_RADIO_TASK_REG_ERR_EID,       0x0000},
-    {GENERIC_RADIO_TASK_REG_INF_EID,       0x0000},
-};
-
 
 /*
 ** Application entry point and main process loop
@@ -136,9 +111,7 @@ int32 GENERIC_RADIO_AppInit(void)
     /*
     ** Register the events
     */ 
-    status = CFE_EVS_Register(GENERIC_RADIO_EventFilters,
-                              sizeof(GENERIC_RADIO_EventFilters)/sizeof(CFE_EVS_BinFilter_t),
-                              CFE_EVS_BINARY_FILTER);    /* as default, no filters are used */
+    status = CFE_EVS_Register(NULL, 0, CFE_EVS_BINARY_FILTER);    /* as default, no filters are used */
     if (status != CFE_SUCCESS)
     {
         CFE_ES_WriteToSysLog("GENERIC_RADIO: Error registering for event services: 0x%08X\n", (unsigned int) status);
@@ -206,14 +179,9 @@ int32 GENERIC_RADIO_AppInit(void)
     /*
     ** Initialize sockets
     */
-    char fsw_ip[] = GENERIC_RADIO_CFG_FSW_IP;
-    char radio_ip[] = GENERIC_RADIO_CFG_DEVICE_IP;
-    int radio_port = GENERIC_RADIO_CFG_UDP_FSW_TO_RADIO;
-    int prox_port = GENERIC_RADIO_CFG_UDP_FSW_TO_PROX;
-
     GENERIC_RADIO_AppData.RadioSocket.sockfd = -1;
     GENERIC_RADIO_AppData.RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
-    GENERIC_RADIO_AppData.RadioSocket.ip_address = fsw_ip;
+    GENERIC_RADIO_AppData.RadioSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
     GENERIC_RADIO_AppData.RadioSocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.RadioSocket.type = dgram;
     GENERIC_RADIO_AppData.RadioSocket.category = client;
@@ -233,7 +201,7 @@ int32 GENERIC_RADIO_AppInit(void)
 
     GENERIC_RADIO_AppData.ProxySocket.sockfd = -1;
     GENERIC_RADIO_AppData.ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
-    GENERIC_RADIO_AppData.ProxySocket.ip_address = fsw_ip;
+    GENERIC_RADIO_AppData.ProxySocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
     GENERIC_RADIO_AppData.ProxySocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.ProxySocket.type = dgram;
     GENERIC_RADIO_AppData.ProxySocket.category = client;
@@ -391,7 +359,7 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         ** Radio Proximity Forward Command
         ** Note that no verifications are performed prior to forwarding
         */
-        case GNEERIC_RADIO_PROXIMITY_CC:
+        case GENERIC_RADIO_PROXIMITY_CC:
             prox_msg = ((CFE_SB_MsgPtr_t) ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload);
             status = GENERIC_RADIO_ProximityForward(&GENERIC_RADIO_AppData.ProxySocket, 
                 ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->SCID,
@@ -427,8 +395,6 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
 */
 void GENERIC_RADIO_ProcessTelemetryRequest(void)
 {
-    int32 status = OS_SUCCESS;
-
     /* MsgId is only needed if the command code is not recognized. See default case */
     CFE_SB_MsgId_t MsgId = CFE_SB_GetMsgId(GENERIC_RADIO_AppData.MsgPtr);   
 
@@ -533,7 +499,7 @@ int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length)
 int32 GENERIC_RADIO_ProxyTask(void)
 {
     int32 status = OS_SUCCESS;
-    uint8 read_data[GENERIC_RADIO_CFG_PROX_SIZE] = {0};
+    uint8 read_data[GENERIC_RADIO_CFG_PROX_DATA_SIZE] = {0};
     size_t bytes = 0;
 
     /*
@@ -557,7 +523,7 @@ int32 GENERIC_RADIO_ProxyTask(void)
     while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == TRUE)
     {
         /* Zero read data */
-        CFE_PSP_MemSet(read_data, 0x00, GENERIC_RADIO_CFG_PROX_SIZE);
+        CFE_PSP_MemSet(read_data, 0x00, GENERIC_RADIO_CFG_PROX_DATA_SIZE);
         bytes = 0;
 
         /* Read */
@@ -582,5 +548,6 @@ int32 GENERIC_RADIO_ProxyTask(void)
         OS_TaskDelay(GENERIC_RADIO_DEVICE_MS_LOOP_DELAY);
     }
 
+    socket_close(&GENERIC_RADIO_AppData.ProxySocket);
     return status;
 }

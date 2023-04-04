@@ -23,7 +23,7 @@
 ** Default GENERIC_RADIO Configuration
 */
 #ifndef GENERIC_RADIO_CFG
-    #define GENERIC_RADIO_CFG_PROX_SIZE        64
+    #define GENERIC_RADIO_CFG_PROX_DATA_SIZE   64
     #define GENERIC_RADIO_CFG_FSW_IP           "0.0.0.0"
     #define GENERIC_RADIO_CFG_DEVICE_IP        "0.0.0.0"
     #define GENERIC_RADIO_CFG_DEVICE_DELAY_MS  10

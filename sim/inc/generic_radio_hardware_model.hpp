@@ -23,16 +23,6 @@
 
 
 /*
-** Defines
-*/
-#define GENERIC_RADIO_SIM_SUCCESS 0
-#define GENERIC_RADIO_SIM_ERROR   1
-
-#define GENERIC_RADIO_UDP_SERVER  0
-#define GENERIC_RADIO_UDP_CLIENT  1
-
-
-/*
 ** Namespace
 */
 namespace Nos3
@@ -47,9 +37,12 @@ namespace Nos3
         void run(void);
 
     private:
-        void create_generic_radio_hk(std::uint8_t* out_data); 
+        void create_generic_radio_hk(std::uint8_t out_data[16]); 
         void process_radio_command(const uint8_t *buf, size_t len); /* Handle data the hardware receives */
         void command_callback(NosEngine::Common::Message msg); /* Handle backdoor commands and time tick to the simulator */
+
+        const int GENERIC_RADIO_SIM_SUCCESS = 0;
+        const int GENERIC_RADIO_SIM_ERROR = 0;
 
         typedef struct 
         {
@@ -58,7 +51,7 @@ namespace Nos3
             int port;
         } udp_info_t;
 
-        int32_t udp_init(udp_info_t* sock, uint8_t server);
+        int32_t udp_init(udp_info_t* sock);
         void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
 
         udp_info_t                                          _fsw_ci;
