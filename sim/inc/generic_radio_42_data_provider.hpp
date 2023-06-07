@@ -21,7 +21,7 @@ namespace Nos3
     private:
         /* Disallow these */
         ~Generic_radio42DataProvider(void) {};
-        Generic_radio42DataProvider& operator=(const Generic_radio42DataProvider&) {};
+        Generic_radio42DataProvider& operator=(const Generic_radio42DataProvider&) {return *this;};
 
         int16_t _sc;  /* Which spacecraft number to parse out of 42 data */
     };

@@ -120,11 +120,11 @@ namespace Nos3
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
         /* Forwarding threads */
-        std::thread* cmd_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
-        std::thread* tlm_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
 
-        std::thread* prox_rcv_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
-        std::thread* prox_fsw_thread = new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
@@ -150,7 +150,6 @@ namespace Nos3
         int status;
         uint8_t sock_buffer[256];
         size_t bytes_recvd;
-        size_t bytes_sent;
 
         struct sockaddr_in radio_addr;
         int sockaddr_size = sizeof(struct sockaddr_in);
@@ -162,7 +161,6 @@ namespace Nos3
         while(_keep_running)
         {
             bytes_recvd = 0;
-            bytes_sent = 0;
 
             /* Receive */
             status = recvfrom(_radio_cmd.sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &radio_addr, (socklen_t*) &sockaddr_size);
@@ -263,7 +261,6 @@ namespace Nos3
         int status;
         uint8_t sock_buffer[8192];
         size_t bytes_recvd;
-        size_t bytes_sent;
 
         struct sockaddr_in rcv_addr;
         struct sockaddr_in fwd_addr;
@@ -280,7 +277,6 @@ namespace Nos3
         while(_keep_running)
         {
             bytes_recvd = 0;
-            bytes_sent = 0;
 
             /* Receive */
             status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
@@ -293,7 +289,7 @@ namespace Nos3
 
                 /* Forward */
                 status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
-                if ((status == -1) || (status != bytes_recvd))
+                if ((status == -1) || (status != (int)bytes_recvd))
                 {
                     sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%d bytes", rcv_sock->ip.c_str(), rcv_sock->port, status, bytes_recvd);
                 }
@@ -344,8 +340,6 @@ namespace Nos3
         int status = GENERIC_RADIO_SIM_SUCCESS;
         std::uint8_t valid = GENERIC_RADIO_SIM_SUCCESS;
         
-        std::uint32_t rcv_config;
-
         struct sockaddr_in fwd_addr;
         fwd_addr.sin_family = AF_INET;
         fwd_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());

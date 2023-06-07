@@ -20,7 +20,7 @@ namespace Nos3
     private:
         /* Disallow these */
         ~Generic_radioDataProvider(void) {};
-        Generic_radioDataProvider& operator=(const Generic_radioDataProvider&) {};
+        Generic_radioDataProvider& operator=(const Generic_radioDataProvider&) {return *this;};
 
         mutable double _request_count;
     };
