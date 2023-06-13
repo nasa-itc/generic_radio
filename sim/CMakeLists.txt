@@ -29,8 +29,3 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:$ORIGIN/../lib") # Pick up .so i
 add_library(generic_radio_sim SHARED ${generic_radio_sim_src} ${generic_radio_sim_inc})
 target_link_libraries(generic_radio_sim ${generic_radio_sim_libs})
 install(TARGETS generic_radio_sim LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
-
-add_executable(nos3-generic-radio-simulator src/generic_radio_sim.cpp)
-target_link_libraries(nos3-generic-radio-simulator generic_radio_sim ${generic_radio_sim_libs})
-install(TARGETS nos3-generic-radio-simulator RUNTIME DESTINATION bin)
-install(TARGETS generic_radio_sim LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
