@@ -34,7 +34,7 @@
 typedef struct
 {
     /* Every command requires a header used to identify it */
-    uint8    CmdHeader[CFE_SB_CMD_HDR_SIZE];
+    CFE_MSG_CommandHeader_t CmdHeader;
 
 } GENERIC_RADIO_NoArgs_cmd_t;
 
@@ -44,7 +44,7 @@ typedef struct
 */
 typedef struct
 {
-    uint8    CmdHeader[CFE_SB_CMD_HDR_SIZE];
+    CFE_MSG_CommandHeader_t CmdHeader;
     uint32   DeviceCfg;
 
 } GENERIC_RADIO_Config_cmd_t;
@@ -55,7 +55,7 @@ typedef struct
 */
 typedef struct
 {
-    uint8    CmdHeader[CFE_SB_CMD_HDR_SIZE];
+    CFE_MSG_CommandHeader_t CmdHeader;
     uint16   SCID;
     uint8    Payload[GENERIC_RADIO_CFG_PROX_DATA_SIZE];
 
@@ -67,7 +67,7 @@ typedef struct
 */
 typedef struct 
 {
-    uint8   TlmHeader[CFE_SB_TLM_HDR_SIZE];
+    CFE_MSG_TelemetryHeader_t TlmHeader;
     uint8   CommandErrorCount;
     uint8   CommandCount;
     uint8   DeviceErrorCount;
@@ -76,7 +76,7 @@ typedef struct
     uint8   ForwardCount;
     GENERIC_RADIO_Device_HK_tlm_t DeviceHK;
 
-} OS_PACK GENERIC_RADIO_Hk_tlm_t;
+} __attribute__((packed)) GENERIC_RADIO_Hk_tlm_t;
 #define GENERIC_RADIO_HK_TLM_LNGTH sizeof ( GENERIC_RADIO_Hk_tlm_t )
 
 #endif /* _GENERIC_RADIO_MSG_H_ */
