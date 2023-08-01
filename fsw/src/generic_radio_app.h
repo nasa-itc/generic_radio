@@ -45,7 +45,7 @@ typedef struct
     /*
     ** Operational data  - not reported in housekeeping
     */
-    CFE_SB_MsgPtr_t MsgPtr;             /* Pointer to msg received on software bus */
+    CFE_MSG_Message_t * MsgPtr;             /* Pointer to msg received on software bus */
     CFE_SB_PipeId_t CmdPipe;            /* Pipe Id for HK command pipe */
     uint32 RunStatus;                   /* App run status for controlling the application state */
 
@@ -74,10 +74,10 @@ extern GENERIC_RADIO_AppData_t GENERIC_RADIO_AppData; /* GENERIC_RADIO App Data 
 **
 ** Local function prototypes.
 **
-** Note: Except for the entry point (GENERIC_RADIO_AppMain), these
+** Note: Except for the entry point (RADIO_AppMain), these
 **       functions are not called from any other source module.
 */
-void  GENERIC_RADIO_AppMain(void);
+void  RADIO_AppMain(void);
 int32 GENERIC_RADIO_AppInit(void);
 void  GENERIC_RADIO_ProcessCommandPacket(void);
 void  GENERIC_RADIO_ProcessGroundCommand(void);
@@ -85,7 +85,7 @@ void  GENERIC_RADIO_ProcessTelemetryRequest(void);
 void  GENERIC_RADIO_ReportHousekeeping(void);
 void  GENERIC_RADIO_ReportDeviceTelemetry(void);
 void  GENERIC_RADIO_ResetCounters(void);
-int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length);
-int32 GENERIC_RADIO_ProxyTask(void);
+int32 GENERIC_RADIO_VerifyCmdLength(CFE_MSG_Message_t * msg, uint16 expected_length);
+void  GENERIC_RADIO_ProxyTask(void);
 
 #endif /* _GENERIC_RADIO_APP_H_ */

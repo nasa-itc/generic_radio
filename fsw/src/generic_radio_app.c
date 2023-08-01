@@ -21,14 +21,9 @@ GENERIC_RADIO_AppData_t GENERIC_RADIO_AppData;
 /*
 ** Application entry point and main process loop
 */
-void GENERIC_RADIO_AppMain(void)
+void RADIO_AppMain(void)
 {
     int32 status = OS_SUCCESS;
-
-    /*
-    ** Register the application with executive services
-    */
-    CFE_ES_RegisterApp();
 
     /*
     ** Create the first Performance Log entry
@@ -41,13 +36,13 @@ void GENERIC_RADIO_AppMain(void)
     status = GENERIC_RADIO_AppInit();
     if (status != CFE_SUCCESS)
     {
-        GENERIC_RADIO_AppData.RunStatus = CFE_ES_APP_ERROR;
+        GENERIC_RADIO_AppData.RunStatus = CFE_ES_RunStatus_APP_ERROR;
     }
 
     /*
     ** Main loop
     */
-    while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == TRUE)
+    while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == true)
     {
         /*
         ** Performance log exit stamp
@@ -58,7 +53,7 @@ void GENERIC_RADIO_AppMain(void)
         ** Pend on the arrival of the next Software Bus message
         ** Note that this is the standard, but timeouts are available
         */
-        status = CFE_SB_RcvMsg(&GENERIC_RADIO_AppData.MsgPtr, GENERIC_RADIO_AppData.CmdPipe, CFE_SB_PEND_FOREVER);
+        status = CFE_SB_ReceiveBuffer((CFE_SB_Buffer_t **)&GENERIC_RADIO_AppData.MsgPtr,  GENERIC_RADIO_AppData.CmdPipe,  CFE_SB_PEND_FOREVER);
         
         /* 
         ** Begin performance metrics on anything after this line. This will help to determine
@@ -67,7 +62,7 @@ void GENERIC_RADIO_AppMain(void)
         CFE_ES_PerfLogEntry(GENERIC_RADIO_PERF_ID);
 
         /*
-        ** If the CFE_SB_RcvMsg was successful, then continue to process the command packet
+        ** If the CFE_SB_ReceiveBuffer was successful, then continue to process the command packet
         ** If not, then exit the application in error.
         ** Note that a SB read error should not always result in an app quitting.
         */
@@ -77,8 +72,8 @@ void GENERIC_RADIO_AppMain(void)
         }
         else
         {
-            CFE_EVS_SendEvent(GENERIC_RADIO_PIPE_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: SB Pipe Read Error = %d", (int) status);
-            GENERIC_RADIO_AppData.RunStatus = CFE_ES_APP_ERROR;
+            CFE_EVS_SendEvent(GENERIC_RADIO_PIPE_ERR_EID, CFE_EVS_EventType_ERROR, "GENERIC_RADIO: SB Pipe Read Error = %d", (int) status);
+            GENERIC_RADIO_AppData.RunStatus = CFE_ES_RunStatus_APP_ERROR;
         }
     }
 
@@ -106,12 +101,12 @@ int32 GENERIC_RADIO_AppInit(void)
 {
     int32 status = OS_SUCCESS;
     
-    GENERIC_RADIO_AppData.RunStatus = CFE_ES_APP_RUN;
+    GENERIC_RADIO_AppData.RunStatus = CFE_ES_RunStatus_APP_RUN;
 
     /*
     ** Register the events
     */ 
-    status = CFE_EVS_Register(NULL, 0, CFE_EVS_BINARY_FILTER);    /* as default, no filters are used */
+    status = CFE_EVS_Register(NULL, 0, CFE_EVS_EventFilter_BINARY);    /* as default, no filters are used */
     if (status != CFE_SUCCESS)
     {
         CFE_ES_WriteToSysLog("GENERIC_RADIO: Error registering for event services: 0x%08X\n", (unsigned int) status);
@@ -124,7 +119,7 @@ int32 GENERIC_RADIO_AppInit(void)
     status = CFE_SB_CreatePipe(&GENERIC_RADIO_AppData.CmdPipe, GENERIC_RADIO_PIPE_DEPTH, "RADIO_CMD_PIPE");
     if (status != CFE_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_PIPE_ERR_EID, CFE_EVS_ERROR,
+        CFE_EVS_SendEvent(GENERIC_RADIO_PIPE_ERR_EID, CFE_EVS_EventType_ERROR,
             "Error Creating SB Pipe,RC=0x%08X",(unsigned int) status);
        return status;
     }
@@ -132,10 +127,10 @@ int32 GENERIC_RADIO_AppInit(void)
     /*
     ** Subscribe to ground commands
     */
-    status = CFE_SB_Subscribe(GENERIC_RADIO_CMD_MID, GENERIC_RADIO_AppData.CmdPipe);
+    status = CFE_SB_Subscribe(CFE_SB_ValueToMsgId(GENERIC_RADIO_CMD_MID), GENERIC_RADIO_AppData.CmdPipe);
     if (status != CFE_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_SUB_CMD_ERR_EID, CFE_EVS_ERROR,
+        CFE_EVS_SendEvent(GENERIC_RADIO_SUB_CMD_ERR_EID, CFE_EVS_EventType_ERROR,
             "Error Subscribing to HK Gnd Cmds, MID=0x%04X, RC=0x%08X",
             GENERIC_RADIO_CMD_MID, (unsigned int) status);
         return status;
@@ -144,10 +139,10 @@ int32 GENERIC_RADIO_AppInit(void)
     /*
     ** Subscribe to housekeeping (hk) message requests
     */
-    status = CFE_SB_Subscribe(GENERIC_RADIO_REQ_HK_MID, GENERIC_RADIO_AppData.CmdPipe);
+    status = CFE_SB_Subscribe(CFE_SB_ValueToMsgId(GENERIC_RADIO_REQ_HK_MID), GENERIC_RADIO_AppData.CmdPipe);
     if (status != CFE_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_SUB_REQ_HK_ERR_EID, CFE_EVS_ERROR,
+        CFE_EVS_SendEvent(GENERIC_RADIO_SUB_REQ_HK_ERR_EID, CFE_EVS_EventType_ERROR,
             "Error Subscribing to HK Request, MID=0x%04X, RC=0x%08X",
             GENERIC_RADIO_REQ_HK_MID, (unsigned int) status);
         return status;
@@ -158,9 +153,9 @@ int32 GENERIC_RADIO_AppInit(void)
     ** Initialize the published HK message - this HK message will contain the 
     ** telemetry that has been defined in the GENERIC_RADIO_HkTelemetryPkt for this app.
     */
-    CFE_SB_InitMsg(&GENERIC_RADIO_AppData.HkTelemetryPkt,
-                   GENERIC_RADIO_HK_TLM_MID,
-                   GENERIC_RADIO_HK_TLM_LNGTH, TRUE);
+    CFE_MSG_Init(CFE_MSG_PTR(GENERIC_RADIO_AppData.HkTelemetryPkt.TlmHeader),
+                   CFE_SB_ValueToMsgId(GENERIC_RADIO_HK_TLM_MID),
+                   GENERIC_RADIO_HK_TLM_LNGTH);
 
 
     /* 
@@ -185,17 +180,17 @@ int32 GENERIC_RADIO_AppInit(void)
     GENERIC_RADIO_AppData.RadioSocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.RadioSocket.type = dgram;
     GENERIC_RADIO_AppData.RadioSocket.category = client;
-    GENERIC_RADIO_AppData.RadioSocket.block = FALSE;
-    GENERIC_RADIO_AppData.RadioSocket.keep_alive = FALSE;
-    GENERIC_RADIO_AppData.RadioSocket.created = FALSE;
-    GENERIC_RADIO_AppData.RadioSocket.bound = FALSE;
-    GENERIC_RADIO_AppData.RadioSocket.listening = FALSE;
-    GENERIC_RADIO_AppData.RadioSocket.connected = FALSE;
+    GENERIC_RADIO_AppData.RadioSocket.block = false;
+    GENERIC_RADIO_AppData.RadioSocket.keep_alive = false;
+    GENERIC_RADIO_AppData.RadioSocket.created = false;
+    GENERIC_RADIO_AppData.RadioSocket.bound = false;
+    GENERIC_RADIO_AppData.RadioSocket.listening = false;
+    GENERIC_RADIO_AppData.RadioSocket.connected = false;
 
     status = socket_create(&GENERIC_RADIO_AppData.RadioSocket);
     if (status != SOCKET_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Radio interface create error %d", status);
+        CFE_EVS_SendEvent(GENERIC_RADIO_SOCK_OPEN_ERR_EID, CFE_EVS_EventType_ERROR, "GENERIC_RADIO: Radio interface create error %d", status);
         return status;
     }
 
@@ -205,17 +200,17 @@ int32 GENERIC_RADIO_AppInit(void)
     GENERIC_RADIO_AppData.ProxySocket.address_family = ip_ver_4;
     GENERIC_RADIO_AppData.ProxySocket.type = dgram;
     GENERIC_RADIO_AppData.ProxySocket.category = client;
-    GENERIC_RADIO_AppData.ProxySocket.block = FALSE;
-    GENERIC_RADIO_AppData.ProxySocket.keep_alive = FALSE;
-    GENERIC_RADIO_AppData.ProxySocket.created = FALSE;
-    GENERIC_RADIO_AppData.ProxySocket.bound = FALSE;
-    GENERIC_RADIO_AppData.ProxySocket.listening = FALSE;
-    GENERIC_RADIO_AppData.ProxySocket.connected = FALSE;
+    GENERIC_RADIO_AppData.ProxySocket.block = false;
+    GENERIC_RADIO_AppData.ProxySocket.keep_alive = false;
+    GENERIC_RADIO_AppData.ProxySocket.created = false;
+    GENERIC_RADIO_AppData.ProxySocket.bound = false;
+    GENERIC_RADIO_AppData.ProxySocket.listening = false;
+    GENERIC_RADIO_AppData.ProxySocket.connected = false;
 
     status = socket_create(&GENERIC_RADIO_AppData.ProxySocket);
     if (status != SOCKET_SUCCESS)
     {
-        CFE_EVS_SendEvent(GENERIC_RADIO_PROX_OPEN_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Proximity interface create error %d", status);
+        CFE_EVS_SendEvent(GENERIC_RADIO_PROX_OPEN_ERR_EID, CFE_EVS_EventType_ERROR, "GENERIC_RADIO: Proximity interface create error %d", status);
         return status;
     }
 
@@ -225,7 +220,7 @@ int32 GENERIC_RADIO_AppInit(void)
     */
     status = CFE_ES_CreateChildTask(&GENERIC_RADIO_AppData.DeviceID,
                                     GENERIC_RADIO_DEVICE_NAME,
-                                    (void *) GENERIC_RADIO_ProxyTask, 0,
+                                    GENERIC_RADIO_ProxyTask, 0,
                                     GENERIC_RADIO_DEVICE_STACK_SIZE,
                                     GENERIC_RADIO_DEVICE_PRIORITY, 0);
     if (status != CFE_SUCCESS)
@@ -237,7 +232,7 @@ int32 GENERIC_RADIO_AppInit(void)
      ** Send an information event that the app has initialized. 
      ** This is useful for debugging the loading of individual applications.
      */
-    status = CFE_EVS_SendEvent(GENERIC_RADIO_STARTUP_INF_EID, CFE_EVS_INFORMATION,
+    status = CFE_EVS_SendEvent(GENERIC_RADIO_STARTUP_INF_EID, CFE_EVS_EventType_INFORMATION,
                "GENERIC_RADIO App Initialized. Version %d.%d.%d.%d",
                 GENERIC_RADIO_MAJOR_VERSION,
                 GENERIC_RADIO_MINOR_VERSION, 
@@ -256,8 +251,9 @@ int32 GENERIC_RADIO_AppInit(void)
 */
 void GENERIC_RADIO_ProcessCommandPacket(void)
 {
-    CFE_SB_MsgId_t MsgId = CFE_SB_GetMsgId(GENERIC_RADIO_AppData.MsgPtr);
-    switch (MsgId)
+    CFE_SB_MsgId_t MsgId = CFE_SB_INVALID_MSG_ID;
+    CFE_MSG_GetMsgId(GENERIC_RADIO_AppData.MsgPtr, &MsgId);
+    switch (CFE_SB_MsgIdToValue(MsgId))
     {
         /*
         ** Ground Commands with command codes fall under the GENERIC_RADIO_CMD_MID (Message ID)
@@ -279,7 +275,7 @@ void GENERIC_RADIO_ProcessCommandPacket(void)
         */
         default:
             GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_PROCESS_CMD_ERR_EID,CFE_EVS_ERROR, "GENERIC_RADIO: Invalid command packet, MID = 0x%x", MsgId);
+            CFE_EVS_SendEvent(GENERIC_RADIO_PROCESS_CMD_ERR_EID,CFE_EVS_EventType_ERROR, "GENERIC_RADIO: Invalid command packet, MID = 0x%x", CFE_SB_MsgIdToValue(MsgId));
             break;
     }
     return;
@@ -292,18 +288,20 @@ void GENERIC_RADIO_ProcessCommandPacket(void)
 void GENERIC_RADIO_ProcessGroundCommand(void)
 {
     int32 status = OS_SUCCESS;
-    CFE_SB_MsgPtr_t prox_msg;
+    CFE_SB_MsgId_t MsgId = CFE_SB_INVALID_MSG_ID;
+    CFE_MSG_FcnCode_t CommandCode = 0;
+    size_t prox_size = 0;
 
     /*
     ** MsgId is only needed if the command code is not recognized. See default case
     */
-    CFE_SB_MsgId_t MsgId = CFE_SB_GetMsgId(GENERIC_RADIO_AppData.MsgPtr);   
+    CFE_MSG_GetMsgId(GENERIC_RADIO_AppData.MsgPtr, &MsgId);
 
     /*
     ** Ground Commands, by definition, have a command code (_CC) associated with them
     ** Pull this command code from the message and then process
     */
-    uint16 CommandCode = CFE_SB_GetCmdCode(GENERIC_RADIO_AppData.MsgPtr);
+    CFE_MSG_GetFcnCode(GENERIC_RADIO_AppData.MsgPtr, &CommandCode);
     switch (CommandCode)
     {
         /*
@@ -317,7 +315,7 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
             if (GENERIC_RADIO_VerifyCmdLength(GENERIC_RADIO_AppData.MsgPtr, sizeof(GENERIC_RADIO_NoArgs_cmd_t)) == OS_SUCCESS)
             {
                 /* Second, send EVS event on successful receipt ground commands*/
-                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_NOOP_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: NOOP command received");
+                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_NOOP_INF_EID, CFE_EVS_EventType_INFORMATION, "GENERIC_RADIO: NOOP command received");
                 /* Third, do the desired command action if applicable, in the case of NOOP it is no operation */
             }
             break;
@@ -328,7 +326,7 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         case GENERIC_RADIO_RESET_COUNTERS_CC:
             if (GENERIC_RADIO_VerifyCmdLength(GENERIC_RADIO_AppData.MsgPtr, sizeof(GENERIC_RADIO_NoArgs_cmd_t)) == OS_SUCCESS)
             {
-                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_RESET_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: RESET counters command received");
+                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_RESET_INF_EID, CFE_EVS_EventType_INFORMATION, "GENERIC_RADIO: RESET counters command received");
                 GENERIC_RADIO_ResetCounters();
             }
             break;
@@ -340,7 +338,7 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         case GENERIC_RADIO_CONFIG_CC:
             if (GENERIC_RADIO_VerifyCmdLength(GENERIC_RADIO_AppData.MsgPtr, sizeof(GENERIC_RADIO_Config_cmd_t)) == OS_SUCCESS)
             {
-                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_CONFIG_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Configuration command received");
+                CFE_EVS_SendEvent(GENERIC_RADIO_CMD_CONFIG_INF_EID, CFE_EVS_EventType_INFORMATION, "GENERIC_RADIO: Configuration command received");
                 /* Command device to send HK */
                 status = GENERIC_RADIO_SetConfiguration(&GENERIC_RADIO_AppData.RadioSocket,
                      ((GENERIC_RADIO_Config_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->DeviceCfg);
@@ -360,11 +358,11 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         ** Note that no verifications are performed prior to forwarding
         */
         case GENERIC_RADIO_PROXIMITY_CC:
-            prox_msg = ((CFE_SB_MsgPtr_t) ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload);
+            CFE_MSG_GetSize((CFE_MSG_Message_t*) ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload, &prox_size);
             status = GENERIC_RADIO_ProximityForward(&GENERIC_RADIO_AppData.ProxySocket, 
                 ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->SCID,
                 ((GENERIC_RADIO_Proximity_cmd_t*) GENERIC_RADIO_AppData.MsgPtr)->Payload,
-                CFE_SB_GetTotalMsgLength(prox_msg));
+                prox_size);
             if (status == OS_SUCCESS)
             {
                 GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount++;
@@ -382,8 +380,8 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
         default:
             /* Increment the error counter upon receipt of an invalid command */
             GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_CMD_ERR_EID, CFE_EVS_ERROR, 
-                "GENERIC_RADIO: Invalid command code for packet, MID = 0x%x, cmdCode = 0x%x", MsgId, CommandCode);
+            CFE_EVS_SendEvent(GENERIC_RADIO_CMD_ERR_EID, CFE_EVS_EventType_ERROR, 
+                "GENERIC_RADIO: Invalid command code for packet, MID = 0x%x, cmdCode = 0x%x", CFE_SB_MsgIdToValue(MsgId), CommandCode);
             break;
     }
     return;
@@ -395,11 +393,14 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
 */
 void GENERIC_RADIO_ProcessTelemetryRequest(void)
 {
+    CFE_SB_MsgId_t MsgId = CFE_SB_INVALID_MSG_ID;
+    CFE_MSG_FcnCode_t CommandCode = 0;
+
     /* MsgId is only needed if the command code is not recognized. See default case */
-    CFE_SB_MsgId_t MsgId = CFE_SB_GetMsgId(GENERIC_RADIO_AppData.MsgPtr);   
+    CFE_MSG_GetMsgId(GENERIC_RADIO_AppData.MsgPtr, &MsgId);
 
     /* Pull this command code from the message and then process */
-    uint16 CommandCode = CFE_SB_GetCmdCode(GENERIC_RADIO_AppData.MsgPtr);
+    CFE_MSG_GetFcnCode(GENERIC_RADIO_AppData.MsgPtr, &CommandCode);
     switch (CommandCode)
     {
         case GENERIC_RADIO_REQ_HK_TLM:
@@ -412,8 +413,8 @@ void GENERIC_RADIO_ProcessTelemetryRequest(void)
         default:
             /* Increment the error counter upon receipt of an invalid command */
             GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount++;
-            CFE_EVS_SendEvent(GENERIC_RADIO_DEVICE_TLM_ERR_EID, CFE_EVS_ERROR, 
-                "GENERIC_RADIO: Invalid command code for packet, MID = 0x%x, cmdCode = 0x%x", MsgId, CommandCode);
+            CFE_EVS_SendEvent(GENERIC_RADIO_DEVICE_TLM_ERR_EID, CFE_EVS_EventType_ERROR, 
+                "GENERIC_RADIO: Invalid command code for packet, MID = 0x%x, cmdCode = 0x%x", CFE_SB_MsgIdToValue(MsgId), CommandCode);
             break;
     }
     return;
@@ -435,13 +436,13 @@ void GENERIC_RADIO_ReportHousekeeping(void)
     else
     {
         GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount++;
-        CFE_EVS_SendEvent(GENERIC_RADIO_REQ_HK_ERR_EID, CFE_EVS_ERROR, 
+        CFE_EVS_SendEvent(GENERIC_RADIO_REQ_HK_ERR_EID, CFE_EVS_EventType_ERROR, 
                 "GENERIC_RADIO: Request device HK reported error %d", status);
     }
 
     /* Time stamp and publish housekeeping telemetry */
-    CFE_SB_TimeStampMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt);
-    CFE_SB_SendMsg((CFE_SB_Msg_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt);
+    CFE_SB_TimeStampMsg((CFE_MSG_Message_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt);
+    CFE_SB_TransmitMsg((CFE_MSG_Message_t *) &GENERIC_RADIO_AppData.HkTelemetryPkt, true);
     return;
 }
 
@@ -464,13 +465,14 @@ void GENERIC_RADIO_ResetCounters(void)
 /*
 ** Verify command packet length matches expected
 */
-int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length)
+int32 GENERIC_RADIO_VerifyCmdLength(CFE_MSG_Message_t * msg, uint16 expected_length)
 {     
     int32 status = OS_SUCCESS;
-    CFE_SB_MsgId_t msg_id = 0xFFFF;
-    uint16 cmd_code = 0xFFFF;
-    uint16 actual_length = CFE_SB_GetTotalMsgLength(msg);
+    CFE_SB_MsgId_t msg_id = CFE_SB_INVALID_MSG_ID;
+    CFE_MSG_FcnCode_t cmd_code = 0;
+    size_t actual_length = 0;
 
+    CFE_MSG_GetSize(msg, &actual_length);
     if (expected_length == actual_length)
     {
         /* Increment the command counter upon receipt of an invalid command */
@@ -478,12 +480,12 @@ int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length)
     }
     else
     {
-        msg_id = CFE_SB_GetMsgId(msg);
-        cmd_code = CFE_SB_GetCmdCode(msg);
+        CFE_MSG_GetMsgId(msg, &msg_id);
+        CFE_MSG_GetFcnCode(msg, &cmd_code);
 
-        CFE_EVS_SendEvent(GENERIC_RADIO_LEN_ERR_EID, CFE_EVS_ERROR,
+        CFE_EVS_SendEvent(GENERIC_RADIO_LEN_ERR_EID, CFE_EVS_EventType_ERROR,
            "Invalid msg length: ID = 0x%X,  CC = %d, Len = %d, Expected = %d",
-              msg_id, cmd_code, actual_length, expected_length);
+              CFE_SB_MsgIdToValue(msg_id), cmd_code, actual_length, expected_length);
 
         status = OS_ERROR;
 
@@ -496,31 +498,18 @@ int32 GENERIC_RADIO_VerifyCmdLength(CFE_SB_MsgPtr_t msg, uint16 expected_length)
 /*
 ** Proxy Read Task
 */
-int32 GENERIC_RADIO_ProxyTask(void)
+void GENERIC_RADIO_ProxyTask(void)
 {
     int32 status = OS_SUCCESS;
     uint8 read_data[GENERIC_RADIO_CFG_PROX_DATA_SIZE] = {0};
     size_t bytes = 0;
 
-    /*
-    ** Register the device task with Executive Services
-    */
-    status = CFE_ES_RegisterChildTask();
-    if(status != CFE_SUCCESS)
-    {
-        CFE_EVS_SendEvent(GENERIC_RADIO_TASK_REG_ERR_EID, CFE_EVS_ERROR, "GENERIC_RADIO: Register device task error %d", status);
-        CFE_ES_ExitChildTask();
-        return status;
-    }
-    else
-    {
-        CFE_EVS_SendEvent(GENERIC_RADIO_TASK_REG_INF_EID, CFE_EVS_INFORMATION, "GENERIC_RADIO: Device task registration complete");
-    }
+    CFE_EVS_SendEvent(GENERIC_RADIO_TASK_REG_INF_EID, CFE_EVS_EventType_INFORMATION, "GENERIC_RADIO: Device task registration complete");
 
     /*
     ** Device Run Loop
     */
-    while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == TRUE)
+    while (CFE_ES_RunLoop(&GENERIC_RADIO_AppData.RunStatus) == true)
     {
         /* Zero read data */
         CFE_PSP_MemSet(read_data, 0x00, GENERIC_RADIO_CFG_PROX_DATA_SIZE);
@@ -541,7 +530,7 @@ int32 GENERIC_RADIO_ProxyTask(void)
             #endif
         
             /* Publish on software bus assuming all received data is correctly formatted */
-            CFE_SB_SendMsg((CFE_SB_Msg_t *) read_data);
+            CFE_SB_TransmitMsg((CFE_MSG_Message_t *) read_data, true);
         }
 
         /* Delay between loops */
@@ -549,5 +538,4 @@ int32 GENERIC_RADIO_ProxyTask(void)
     }
 
     socket_close(&GENERIC_RADIO_AppData.ProxySocket);
-    return status;
 }
