@@ -64,20 +64,20 @@ namespace Nos3
                 if (v.second.get("name", "").compare("radio") == 0)
                 {
                     /* Configuration found */
-                    _fsw_to.ip = v.second.get("ip", _fsw_to.ip);
-
                     _radio_cmd.ip = v.second.get("ip", _radio_cmd.ip);
                     _radio_cmd.port = v.second.get("cmd-port", _radio_cmd.port);
+                    
+                    _fsw_to.ip = v.second.get("ip", _fsw_to.ip);
+                    _gsw_cmd.ip = v.second.get("ip", _gsw_cmd.ip);;
 
                     _prox_rcv.ip = v.second.get("ip", _prox_rcv.ip);
-
                     _prox_fwd.ip = v.second.get("ip", _prox_fwd.ip);
                 }
 
                 if (v.second.get("name", "").compare("gsw") == 0)
                 {
                     /* Configuration found */
-                    _gsw_cmd.ip = v.second.get("ip", _gsw_cmd.ip);
+                    
                     _gsw_cmd.port = v.second.get("cmd-port", _gsw_cmd.port);
                     
                     _gsw_tlm.ip = v.second.get("ip", _gsw_tlm.ip);
@@ -88,11 +88,8 @@ namespace Nos3
                 {
                     /* Configuration found */
                     _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
-
                     _prox_fsw.port = v.second.get("fsw-port", _prox_fsw.port);
-                    
                     _prox_fwd.port = v.second.get("fwd-port", _prox_fwd.port);
-
                     _prox_dest.ip = v.second.get("ip", _prox_dest.ip);
                     _prox_dest.port = v.second.get("dest-port", _prox_dest.port);
                 }
@@ -219,6 +216,27 @@ namespace Nos3
     }
 
 
+    int32_t Generic_radioHardwareModel::host_to_ip(const char * hostname, char* ip)
+    {
+        struct hostent *he;
+        struct in_addr **addr_list;
+    
+        if ( (he = gethostbyname( hostname ) ) == NULL )
+        {
+            return 1;
+        }
+
+        addr_list = (struct in_addr **) he->h_addr_list;
+
+        for(int i=0; addr_list[i] != NULL; i++)
+        {
+            strcpy(ip, inet_ntoa(*addr_list[i]) );
+            return 0;
+        }
+        return 1;
+    }
+
+
     int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
     {
         int status;
@@ -232,11 +250,26 @@ namespace Nos3
             sim_logger->info("udp_init:  Socket create error with ip %s, and port %d", sock->ip.c_str(), sock->port);
         }
 
-        /* Bind */
+        /* Determine IP */
         struct sockaddr_in saddr;
         saddr.sin_family = AF_INET;
-        saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
-        saddr.sin_port = htons(sock->port);   
+        if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
+        {
+            saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+        }
+        else
+        {
+            char ip[16];
+            int check = host_to_ip(sock->ip.c_str(), ip);
+            sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d \n", sock->ip.c_str(), ip, sock->port);
+            if(check == 0)
+            {
+                saddr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
+        saddr.sin_port = htons(sock->port);
+
+        /* Bind */
         status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
         if (status != 0)
         {
@@ -267,7 +300,20 @@ namespace Nos3
         int sockaddr_size = sizeof(struct sockaddr_in);
 
         fwd_addr.sin_family = AF_INET;
-        fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+        if(inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
+        {
+            fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+        }
+        else
+        {
+            char ip[16];
+            int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+            sim_logger->info("forward_loop - Initial = %s; Updated = %s; Port = %d \n", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+            if(check == 0)
+            {
+                fwd_addr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
         fwd_addr.sin_port = htons(fwd_sock->port);
 
         udp_init(rcv_sock);
@@ -342,7 +388,19 @@ namespace Nos3
         
         struct sockaddr_in fwd_addr;
         fwd_addr.sin_family = AF_INET;
-        fwd_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());
+        if(inet_addr(_fsw_radio.ip.c_str()) != INADDR_NONE)
+        {
+            fwd_addr.sin_addr.s_addr = inet_addr(_fsw_radio.ip.c_str());
+        }
+        else
+        {
+            char ip[16];
+            int check = host_to_ip(_fsw_radio.ip.c_str(), ip);
+            if(check == 0)
+            {
+                fwd_addr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
         fwd_addr.sin_port = htons(_fsw_radio.port);
 
         /* Retrieve data and log in man readable format */
