@@ -9,13 +9,13 @@
 #include <arpa/inet.h>	
 #include <boost/tuple/tuple.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <thread>
 #include <string.h>
 #include <sys/socket.h>
 
 #include <Client/Bus.hpp>
-
 
 #include <sim_i_data_provider.hpp>
 #include <generic_radio_data_point.hpp>
@@ -51,6 +51,7 @@ namespace Nos3
             int port;
         } udp_info_t;
 
+        int32_t host_to_ip(const char * hostname, char* ip);
         int32_t udp_init(udp_info_t* sock);
         void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
 
