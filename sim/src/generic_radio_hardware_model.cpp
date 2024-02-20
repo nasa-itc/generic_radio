@@ -166,7 +166,7 @@ namespace Nos3
                 bytes_recvd = status;
 
                 /* Debug print */
-                sim_logger->debug("Generic_radioHardwareModel::run: %s:%d received %d bytes", _radio_cmd.ip.c_str(), _radio_cmd.port, bytes_recvd);
+                sim_logger->debug("Generic_radioHardwareModel::run: %s:%d received %ld bytes", _radio_cmd.ip.c_str(), _radio_cmd.port, bytes_recvd);
 
                 /* Process Command */
                 process_radio_command(sock_buffer, bytes_recvd);
@@ -331,13 +331,13 @@ namespace Nos3
                 bytes_recvd = status;
 
                 /* Debug print */
-                sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %d bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+                sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
 
                 /* Forward */
                 status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
                 if ((status == -1) || (status != (int)bytes_recvd))
                 {
-                    sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%d bytes", rcv_sock->ip.c_str(), rcv_sock->port, status, bytes_recvd);
+                    sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, status, bytes_recvd);
                 }
             }
         }
@@ -419,7 +419,7 @@ namespace Nos3
             /* Check if message is incorrect size */
             if (in_data.size() != 9)
             {
-                sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Invalid command size of %d received!", in_data.size());
+                sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Invalid command size of %ld received!", in_data.size());
                 valid = GENERIC_RADIO_SIM_ERROR;
             }
             else
