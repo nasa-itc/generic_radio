@@ -12,9 +12,10 @@
 ** Required header files.
 */
 #include "cfe_endian.h"
+#include "generic_radio_platform_cfg.h"
 #include "device_cfg.h"
 #include "hwlib.h"
-#include "generic_radio_platform_cfg.h"
+// #include "generic_radio_platform_cfg.h"
 
 
 /*
