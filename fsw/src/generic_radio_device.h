@@ -11,10 +11,14 @@
 /*
 ** Required header files.
 */
-#include "cfe_endian.h"
 #include "generic_radio_platform_cfg.h"
 #include "device_cfg.h"
 #include "hwlib.h"
+// #include "cfe.h"
+// #include "cfe_endian.h"
+// #include "generic_radio_platform_cfg.h"
+// #include "device_cfg.h"
+// #include "hwlib.h"
 // #include "generic_radio_platform_cfg.h"
 
 
@@ -42,7 +46,8 @@ typedef struct
     uint32_t  DeviceConfig;
     uint32_t  ProxSignal;
 
-} __attribute__((packed)) GENERIC_RADIO_Device_HK_tlm_t;
+// } __attribute__((packed)) GENERIC_RADIO_Device_HK_tlm_t;
+}GENERIC_RADIO_Device_HK_tlm_t;
 #define GENERIC_RADIO_DEVICE_HK_LNGTH sizeof ( GENERIC_RADIO_Device_HK_tlm_t )
 #define GENERIC_RADIO_DEVICE_HK_SIZE GENERIC_RADIO_DEVICE_HK_LNGTH + GENERIC_RADIO_DEVICE_HDR_TRL_LEN
 
