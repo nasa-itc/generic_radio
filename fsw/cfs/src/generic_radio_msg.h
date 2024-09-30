@@ -9,7 +9,7 @@
 #ifndef _GENERIC_RADIO_MSG_H_
 #define _GENERIC_RADIO_MSG_H_
 
-// #include "cfe.h"
+#include "cfe.h"
 #include "generic_radio_device.h"
 
 
@@ -34,7 +34,7 @@
 typedef struct
 {
     /* Every command requires a header used to identify it */
-    // CFE_MSG_CommandHeader_t CmdHeader;
+    CFE_MSG_CommandHeader_t CmdHeader;
 
 } GENERIC_RADIO_NoArgs_cmd_t;
 
@@ -44,9 +44,8 @@ typedef struct
 */
 typedef struct
 {
-    // CFE_MSG_CommandHeader_t CmdHeader;
-    // uint32   DeviceCfg;
-    uint32_t   DeviceCfg;
+    CFE_MSG_CommandHeader_t CmdHeader;
+    uint32   DeviceCfg;
 
 } GENERIC_RADIO_Config_cmd_t;
 
@@ -56,11 +55,9 @@ typedef struct
 */
 typedef struct
 {
-    // CFE_MSG_CommandHeader_t CmdHeader;
-    // uint16   SCID;
-    uint16_t   SCID;
-    // uint8    Payload[GENERIC_RADIO_CFG_PROX_DATA_SIZE];
-    uint    Payload[GENERIC_RADIO_CFG_PROX_DATA_SIZE];
+    CFE_MSG_CommandHeader_t CmdHeader;
+    uint16   SCID;
+    uint8    Payload[GENERIC_RADIO_CFG_PROX_DATA_SIZE];
 
 } GENERIC_RADIO_Proximity_cmd_t;
 
@@ -70,19 +67,13 @@ typedef struct
 */
 typedef struct 
 {
-    // CFE_MSG_TelemetryHeader_t TlmHeader;
-    // uint8   CommandErrorCount;
-    // uint8   CommandCount;
-    // uint8   DeviceErrorCount;
-    // uint8   DeviceCount;
-    // uint8   ForwardErrorCount;
-    // uint8   ForwardCount;
-    uint   CommandErrorCount;
-    uint   CommandCount;
-    uint   DeviceErrorCount;
-    uint   DeviceCount;
-    uint   ForwardErrorCount;
-    uint   ForwardCount;
+    CFE_MSG_TelemetryHeader_t TlmHeader;
+    uint8   CommandErrorCount;
+    uint8   CommandCount;
+    uint8   DeviceErrorCount;
+    uint8   DeviceCount;
+    uint8   ForwardErrorCount;
+    uint8   ForwardCount;
     GENERIC_RADIO_Device_HK_tlm_t DeviceHK;
 
 } __attribute__((packed)) GENERIC_RADIO_Hk_tlm_t;
