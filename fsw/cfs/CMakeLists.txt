@@ -15,4 +15,4 @@ aux_source_directory(src APP_SRC_FILES)
 
 # Create the app module
 add_cfe_app(generic_radio ${APP_SRC_FILES}
-            ../shared/sample_device.c)
+            ../shared/generic_radio_device.c)

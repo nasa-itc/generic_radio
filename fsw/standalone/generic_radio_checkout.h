@@ -46,9 +46,8 @@
 #define CMD_UNKNOWN -1
 #define CMD_HELP     0
 #define CMD_EXIT     1
-#define CMD_NOOP     2
 #define CMD_HK       3
-#define CMD_GENERIC_RADIO   4
+#define CMD_PROX_FORWARD   4
 #define CMD_CFG      5
 
 /*

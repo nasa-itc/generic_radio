@@ -21,7 +21,7 @@ if(${TGTNAME} STREQUAL cpu1)
   endif()
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${_ITC_CMAKE_MODULES_})
 
-  find_package(NOSENGINE REQUIRED QUIET COMPONENTS common transport client uart can i2c spi)
+  find_package(NOSENGINE REQUIRED QUIET COMPONENTS common transport client uart can i2c spi socket)
 endif()
 
 include_directories("./")
@@ -43,6 +43,7 @@ if(${TGTNAME} STREQUAL cpu1)
     ../../../../fsw/apps/hwlib/sim/src/libcan.c
     ../../../../fsw/apps/hwlib/sim/src/libi2c.c
     ../../../../fsw/apps/hwlib/sim/src/libspi.c
+    ../../../../fsw/apps/hwlib/sim/src/libsocket.c
     ../../../../fsw/apps/hwlib/sim/src/nos_link.c
   )
   set(generic_radio_checkout_libs
@@ -53,7 +54,7 @@ endif()
 if(${TGTNAME} STREQUAL cpu2)
   set(generic_radio_checkout_src 
     ${generic_radio_checkout_src}
-    ../../../../fsw/apps/hwlib/fsw/linux/libuart.c
+    ../../../../fsw/apps/hwlib/fsw/linux/libsocket.c
   )
 endif()
 

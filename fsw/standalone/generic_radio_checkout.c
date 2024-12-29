@@ -15,9 +15,11 @@
 /*
 ** Global Variables
 */
-uart_info_t RadioUart;
+socket_info_t RadioSocket;
+socket_info_t ProxySocket;
 GENERIC_RADIO_Device_HK_tlm_t RadioHK;
-GENERIC_RADIO_Device_Data_tlm_t RadioData;
+uint8_t RadioData;
+uint16_t SCID = 0x42;
 
 /*
 ** Component Functions
@@ -28,12 +30,10 @@ void print_help(void)
         "---------------------------------------------------------------------\n"
         "help                               - Display help                    \n"
         "exit                               - Exit app                        \n"
-        "noop                               - No operation command to device  \n"
-        "  n                                - ^                               \n"
         "hk                                 - Request device housekeeping     \n"
         "  h                                - ^                               \n"
-        "generic_radio                             - Request generic_radio data             \n"
-        "  s                                - ^                               \n"
+        "proxforward                        - Perform a Proximity Forward     \n"
+        "  p                                - ^                               \n"
         "cfg #                              - Send configuration #            \n"
         "  c #                              - ^                               \n"
         "\n"
@@ -58,14 +58,6 @@ int get_command(const char* str)
     {
         status = CMD_EXIT;
     }
-    else if(strcmp(lcmd, "noop") == 0) 
-    {
-        status = CMD_NOOP;
-    }
-    else if(strcmp(lcmd, "n") == 0) 
-    {
-        status = CMD_NOOP;
-    }
     else if(strcmp(lcmd, "hk") == 0) 
     {
         status = CMD_HK;
@@ -74,13 +66,13 @@ int get_command(const char* str)
     {
         status = CMD_HK;
     }
-    else if(strcmp(lcmd, "generic_radio") == 0) 
+    else if(strcmp(lcmd, "proxforward") == 0) 
     {
-        status = CMD_GENERIC_RADIO;
+        status = CMD_PROX_FORWARD;
     }
-    else if(strcmp(lcmd, "s") == 0) 
+    else if(strcmp(lcmd, "p") == 0) 
     {
-        status = CMD_GENERIC_RADIO;
+        status = CMD_PROX_FORWARD;
     }
     else if(strcmp(lcmd, "cfg") == 0) 
     {
@@ -111,25 +103,10 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
             exit_status = OS_ERROR;
             break;
 
-        case CMD_NOOP:
-            if (check_number_arguments(num_tokens, 0) == OS_SUCCESS)
-            {
-                status = GENERIC_RADIO_CommandDevice(&RadioUart, GENERIC_RADIO_DEVICE_NOOP_CMD, 0);
-                if (status == OS_SUCCESS)
-                {
-                    OS_printf("NOOP command success\n");
-                }
-                else
-                {
-                    OS_printf("NOOP command failed!\n");
-                }
-            }
-            break;
-
         case CMD_HK:
             if (check_number_arguments(num_tokens, 0) == OS_SUCCESS)
             {
-                status = GENERIC_RADIO_RequestHK(&RadioUart, &RadioHK);
+                status = GENERIC_RADIO_RequestHK(&RadioSocket, &RadioHK);
                 if (status == OS_SUCCESS)
                 {
                     OS_printf("GENERIC_RADIO_RequestHK command success\n");
@@ -141,10 +118,10 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
             }
             break;
 
-        case CMD_GENERIC_RADIO:
+        case CMD_PROX_FORWARD:
             if (check_number_arguments(num_tokens, 0) == OS_SUCCESS)
             {
-                status = GENERIC_RADIO_RequestData(&RadioUart, &RadioData);
+                status = GENERIC_RADIO_ProximityForward(&RadioSocket, SCID, &RadioData, size(RadioData));
                 if (status == OS_SUCCESS)
                 {
                     OS_printf("GENERIC_RADIO_RequestData command success\n");
@@ -160,7 +137,7 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
             if (check_number_arguments(num_tokens, 1) == OS_SUCCESS)
             {
                 config = atoi(tokens[0]);
-                status = GENERIC_RADIO_CommandDevice(&RadioUart, GENERIC_RADIO_DEVICE_CFG_CMD, config);
+                status = GENERIC_RADIO_SetConfiguration(&RadioSocket, config);
                 if (status == OS_SUCCESS)
                 {
                     OS_printf("Configuration command success with value %u\n", config);
@@ -195,19 +172,50 @@ int main(int argc, char *argv[])
         nos_init_link();
     #endif
 
-    /* Open device specific protocols */
-    RadioUart.deviceString = GENERIC_RADIO_CFG_STRING;
-    RadioUart.handle = GENERIC_RADIO_CFG_HANDLE;
-    RadioUart.isOpen = PORT_CLOSED;
-    RadioUart.baud = GENERIC_RADIO_CFG_BAUDRATE_HZ;
-    status = uart_init_port(&RadioUart);
-    if (status == OS_SUCCESS)
+    /*
+    ** Initialize sockets
+    */
+    RadioSocket.sockfd = -1;
+    RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
+    RadioSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
+    RadioSocket.address_family = ip_ver_4;
+    RadioSocket.type = dgram;
+    RadioSocket.category = client;
+    RadioSocket.block = false;
+    RadioSocket.keep_alive = false;
+    RadioSocket.created = false;
+    RadioSocket.bound = false;
+    RadioSocket.listening = false;
+    RadioSocket.connected = false;
+
+    status = socket_create(&RadioSocket);
+    if (status != SOCKET_SUCCESS)
     {
-        printf("UART device %s configured with baudrate %d \n", RadioUart.deviceString, RadioUart.baud);
+        printf("GENERIC_RADIO: Radio interface create error %d", status);
+        return status;
+    }
+
+    ProxySocket.sockfd = -1;
+    ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
+    ProxySocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
+    ProxySocket.address_family = ip_ver_4;
+    ProxySocket.type = dgram;
+    ProxySocket.category = client;
+    ProxySocket.block = false;
+    ProxySocket.keep_alive = false;
+    ProxySocket.created = false;
+    ProxySocket.bound = false;
+    ProxySocket.listening = false;
+    ProxySocket.connected = false;
+
+    status = socket_create(&ProxySocket);
+    if (status != SOCKET_SUCCESS)
+    {
+        printf("GENERIC_RADIO: Proximity interface create error %d", status);
     }
     else
     {
-        printf("UART device %s failed to initialize! \n", RadioUart.deviceString);
+        printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", RadioUart.deviceString);
         run_status = OS_ERROR;
     }
 
