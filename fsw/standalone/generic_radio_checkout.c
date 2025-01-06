@@ -260,7 +260,16 @@ int main(int argc, char *argv[])
         }
     }
 
-    socket_close(&RadioSocket);
+    if( RadioSocket.sockfd != -1 )
+    {
+        socket_close(&RadioSocket);
+    }
+
+    if( ProxySocket.sockfd != -1 )
+    {
+        socket_close(&ProxySocket);
+    }
+    
 
     #ifdef _NOS_ENGINE_LINK_
         nos_destroy_link();
