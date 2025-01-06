@@ -121,7 +121,7 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
         case CMD_PROX_FORWARD:
             if (check_number_arguments(num_tokens, 0) == OS_SUCCESS)
             {
-                status = GENERIC_RADIO_ProximityForward(&RadioSocket, SCID, &RadioData, size(RadioData));
+                status = GENERIC_RADIO_ProximityForward(&RadioSocket, SCID, &RadioData, sizeof(RadioData));
                 if (status == OS_SUCCESS)
                 {
                     OS_printf("GENERIC_RADIO_RequestData command success\n");
@@ -194,6 +194,11 @@ int main(int argc, char *argv[])
         printf("GENERIC_RADIO: Radio interface create error %d", status);
         return status;
     }
+      else
+    {
+        printf("GENERIC_RADIO: Radio Interface %d created successfully!\n", RadioSocket.sockfd);
+        run_status = OS_ERROR;
+    }
 
     ProxySocket.sockfd = -1;
     ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
@@ -215,7 +220,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", RadioUart.deviceString);
+        printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", ProxySocket.sockfd);
         run_status = OS_ERROR;
     }
 
@@ -255,8 +260,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Close the device 
-    uart_close_port(&RadioUart);
+    socket_close(&RadioSocket);
 
     #ifdef _NOS_ENGINE_LINK_
         nos_destroy_link();
