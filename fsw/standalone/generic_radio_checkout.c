@@ -192,12 +192,11 @@ int main(int argc, char *argv[])
     if (status != SOCKET_SUCCESS)
     {
         printf("GENERIC_RADIO: Radio interface create error %d", status);
-        return status;
+        run_status = OS_ERROR;
     }
-      else
+    else
     {
         printf("GENERIC_RADIO: Radio Interface %d created successfully!\n", RadioSocket.sockfd);
-        run_status = OS_ERROR;
     }
 
     ProxySocket.sockfd = -1;
@@ -217,11 +216,11 @@ int main(int argc, char *argv[])
     if (status != SOCKET_SUCCESS)
     {
         printf("GENERIC_RADIO: Proximity interface create error %d", status);
+        run_status = OS_ERROR;
     }
     else
     {
         printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", ProxySocket.sockfd);
-        run_status = OS_ERROR;
     }
 
     /* Main loop */
