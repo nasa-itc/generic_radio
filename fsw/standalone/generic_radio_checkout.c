@@ -16,7 +16,7 @@
 ** Global Variables
 */
 socket_info_t RadioSocket;
-socket_info_t ProxySocket;
+socket_info_t ProxSocket;
 GENERIC_RADIO_Device_HK_tlm_t RadioHK;
 uint8_t RadioData;
 uint16_t SCID = 0x42;
@@ -109,7 +109,14 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
                 status = GENERIC_RADIO_RequestHK(&RadioSocket, &RadioHK);
                 if (status == OS_SUCCESS)
                 {
-                    OS_printf("GENERIC_RADIO_RequestHK command success\n");
+                    OS_printf("GENERIC_RADIO_RequestHK command success!\n");
+
+                    OS_printf("GENERIC_RADIO_DEVICE_HK:\n");
+                    OS_printf("  Device Counter:  %u\n", RadioHK.DeviceCounter);
+                    OS_printf("  Device Config: 0x%07X\n", RadioHK.DeviceConfig);
+                    OS_printf("  Prox Signal:     %u\n", RadioHK.ProxSignal);
+                    OS_printf("\n");
+
                 }
                 else
                 {
@@ -124,11 +131,11 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
                 status = GENERIC_RADIO_ProximityForward(&RadioSocket, SCID, &RadioData, sizeof(RadioData));
                 if (status == OS_SUCCESS)
                 {
-                    OS_printf("GENERIC_RADIO_RequestData command success\n");
+                    OS_printf("GENERIC_RADIO_Prox_Forward command success!\n");
                 }
                 else
                 {
-                    OS_printf("GENERIC_RADIO_RequestData command failed!\n");
+                    OS_printf("GENERIC_RADIO_PROX_FORWARD command failed!\n");
                 }
             }
             break;
@@ -191,7 +198,7 @@ int main(int argc, char *argv[])
     status = socket_create(&RadioSocket);
     if (status != SOCKET_SUCCESS)
     {
-        printf("GENERIC_RADIO: Radio interface create error %d", status);
+        printf("GENERIC_RADIO: Radio interface create error %d\n", status);
         run_status = OS_ERROR;
     }
     else
@@ -199,29 +206,33 @@ int main(int argc, char *argv[])
         printf("GENERIC_RADIO: Radio Interface %d created successfully!\n", RadioSocket.sockfd);
     }
 
-    ProxySocket.sockfd = -1;
-    ProxySocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
-    ProxySocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
-    ProxySocket.address_family = ip_ver_4;
-    ProxySocket.type = dgram;
-    ProxySocket.category = client;
-    ProxySocket.block = false;
-    ProxySocket.keep_alive = false;
-    ProxySocket.created = false;
-    ProxySocket.bound = false;
-    ProxySocket.listening = false;
-    ProxySocket.connected = false;
+    OS_printf("port: %d; IP: %s \n", RadioSocket.port_num, RadioSocket.ip_address);
 
-    status = socket_create(&ProxySocket);
+    ProxSocket.sockfd = -1;
+    ProxSocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
+    ProxSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
+    ProxSocket.address_family = ip_ver_4;
+    ProxSocket.type = dgram;
+    ProxSocket.category = client;
+    ProxSocket.block = false;
+    ProxSocket.keep_alive = false;
+    ProxSocket.created = false;
+    ProxSocket.bound = false;
+    ProxSocket.listening = false;
+    ProxSocket.connected = false;
+
+    status = socket_create(&ProxSocket);
     if (status != SOCKET_SUCCESS)
     {
-        printf("GENERIC_RADIO: Proximity interface create error %d", status);
+        printf("GENERIC_RADIO: Proximity interface create error %d\n", status);
         run_status = OS_ERROR;
     }
     else
     {
-        printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", ProxySocket.sockfd);
+        printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", ProxSocket.sockfd);
     }
+
+    OS_printf("port: %d; IP: %s \n", ProxSocket.port_num, ProxSocket.ip_address);
 
     /* Main loop */
     print_help();
@@ -264,9 +275,9 @@ int main(int argc, char *argv[])
         socket_close(&RadioSocket);
     }
 
-    if( ProxySocket.sockfd != -1 )
+    if( ProxSocket.sockfd != -1 )
     {
-        socket_close(&ProxySocket);
+        socket_close(&ProxSocket);
     }
     
 
