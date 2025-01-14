@@ -11,15 +11,9 @@
 /*
 ** Required header files.
 */
-#include "generic_radio_platform_cfg.h"
 #include "device_cfg.h"
 #include "hwlib.h"
-// #include "cfe.h"
-// #include "cfe_endian.h"
-// #include "generic_radio_platform_cfg.h"
-// #include "device_cfg.h"
-// #include "hwlib.h"
-// #include "generic_radio_platform_cfg.h"
+#include "generic_radio_platform_cfg.h"
 
 
 /*
@@ -29,7 +23,6 @@
 #define GENERIC_RADIO_DEVICE_HDR_1            0xAD
 
 #define GENERIC_RADIO_DEVICE_REQ_HK_CMD       0x00
-#define GENERIC_RADIO_DEVICE_NOOP_CMD         0x00 //added fprime testing
 #define GENERIC_RADIO_DEVICE_CFG_CMD          0x01
 
 #define GENERIC_RADIO_DEVICE_TRAILER_0        0xBE
@@ -47,8 +40,7 @@ typedef struct
     uint32_t  DeviceConfig;
     uint32_t  ProxSignal;
 
-// } __attribute__((packed)) GENERIC_RADIO_Device_HK_tlm_t;
-}GENERIC_RADIO_Device_HK_tlm_t;
+} __attribute__((packed)) GENERIC_RADIO_Device_HK_tlm_t;
 #define GENERIC_RADIO_DEVICE_HK_LNGTH sizeof ( GENERIC_RADIO_Device_HK_tlm_t )
 #define GENERIC_RADIO_DEVICE_HK_SIZE GENERIC_RADIO_DEVICE_HK_LNGTH + GENERIC_RADIO_DEVICE_HDR_TRL_LEN
 
@@ -59,6 +51,5 @@ typedef struct
 int32_t GENERIC_RADIO_SetConfiguration(socket_info_t* device, uint32_t config);
 int32_t GENERIC_RADIO_ProximityForward(socket_info_t* device, uint16_t scid, uint8_t* data, uint16_t data_len);
 int32_t GENERIC_RADIO_RequestHK(socket_info_t* device, GENERIC_RADIO_Device_HK_tlm_t* data);
-int32_t GENERIC_RADIO_CommandDevice(uart_info_t* device, uint8_t cmd, uint32_t payload);
 
 #endif /* _GENERIC_RADIO_DEVICE_H_ */
