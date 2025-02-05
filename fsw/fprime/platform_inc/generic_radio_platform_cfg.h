@@ -21,7 +21,7 @@
 
 /*
 ** Default GENERIC_RADIO Configuration
-*/
+*/ 
 #ifndef GENERIC_RADIO_CFG
     #define GENERIC_RADIO_CFG_PROX_DATA_SIZE   64
     #define GENERIC_RADIO_CFG_FSW_IP           "nos_fsw"
