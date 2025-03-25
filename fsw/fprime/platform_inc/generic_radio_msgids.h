@@ -22,7 +22,7 @@
 /*
 ** CCSDS V1 Telemetry Message IDs must be 0x08xx
 */
-#define GENERIC_RADIO_HK_TLM_MID 0x0930
+#define GENERIC_RADIO_HK_TLM_MID     0x0930
 #define GENERIC_RADIO_DEVICE_TLM_MID 0x0931
 
 #endif /* _GENERIC_RADIO_MSGIDS_H_ */
