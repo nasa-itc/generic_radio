@@ -28,11 +28,6 @@ def get_GENERIC_RADIO_hk()
     sleep(GENERIC_RADIO_CMD_SLEEP)
 end
 
-def get_GENERIC_RADIO_data()
-    cmd("GENERIC_RADIO GENERIC_RADIO_REQ_DATA")
-    wait_check_packet("GENERIC_RADIO", "GENERIC_RADIO_DATA_TLM", 1, GENERIC_RADIO_RESPONSE_TIMEOUT)
-    sleep(GENERIC_RADIO_CMD_SLEEP)
-end
 
 def GENERIC_RADIO_cmd(*command)
     count = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM CMD_COUNT") + 1
@@ -59,38 +54,15 @@ def GENERIC_RADIO_cmd(*command)
     check("GENERIC_RADIO GENERIC_RADIO_HK_TLM CMD_COUNT >= #{count}")
 end
 
-def enable_GENERIC_RADIO()
-    # Send command
-    GENERIC_RADIO_cmd("GENERIC_RADIO GENERIC_RADIO_ENABLE_CC")
-    # Confirm
-    check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ENABLED == 'ENABLED'")
-end
-
-def disable_GENERIC_RADIO()
-    # Send command
-    GENERIC_RADIO_cmd("GENERIC_RADIO GENERIC_RADIO_DISABLE_CC")
-    # Confirm
-    check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ENABLED == 'DISABLED'")
-end
 
 def safe_GENERIC_RADIO()
     get_GENERIC_RADIO_hk()
-    state = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ENABLED")
-    if (state != "DISABLED")
-        disable_GENERIC_RADIO()
-    end
 end
 
 def confirm_GENERIC_RADIO_data()
     dev_cmd_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNT")
     dev_cmd_err_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT")
     
-    get_GENERIC_RADIO_data()
-    # Note these checks assume default simulator configuration
-    raw_x = tlm("GENERIC_RADIO GENERIC_RADIO_DATA_TLM RAW_GENERIC_RADIO_X")
-    check("GENERIC_RADIO GENERIC_RADIO_DATA_TLM RAW_GENERIC_RADIO_Y >= #{raw_x*2}")
-    check("GENERIC_RADIO GENERIC_RADIO_DATA_TLM RAW_GENERIC_RADIO_Z >= #{raw_x*3}")
-
     get_GENERIC_RADIO_hk()
     check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNT >= #{dev_cmd_cnt}")
     check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT == #{dev_cmd_err_cnt}")
@@ -109,9 +81,6 @@ def GENERIC_RADIO_prepare_ast()
     # Get to known state
     safe_GENERIC_RADIO()
 
-    # Enable
-    enable_GENERIC_RADIO()
-
     # Confirm data
     confirm_GENERIC_RADIO_data_loop()
 end
@@ -122,8 +91,4 @@ end
 
 def GENERIC_RADIO_sim_disable()
     cmd("SIM_CMDBUS_BRIDGE GENERIC_RADIO_SIM_DISABLE")
-end
-
-def GENERIC_RADIO_sim_set_status(status)
-    cmd("SIM_CMDBUS_BRIDGE GENERIC_RADIO_SIM_SET_STATUS with STATUS #{status}")
 end

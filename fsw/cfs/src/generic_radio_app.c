@@ -158,18 +158,10 @@ int32 GENERIC_RADIO_AppInit(void)
                  CFE_SB_ValueToMsgId(GENERIC_RADIO_HK_TLM_MID), GENERIC_RADIO_HK_TLM_LNGTH);
 
     /*
+    ** Initialize application data
     ** Always reset all counters during application initialization
     */
     GENERIC_RADIO_ResetCounters();
-
-    /*
-    ** Initialize application data
-    ** Note that counters are excluded as they were reset in the previous code
-    *block
-    */
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceConfig  = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.ProxSignal    = 0;
 
     /*
     ** Initialize sockets
@@ -349,7 +341,7 @@ void GENERIC_RADIO_ProcessGroundCommand(void)
                     ((GENERIC_RADIO_Config_cmd_t *)GENERIC_RADIO_AppData.MsgPtr)->DeviceCfg);
                 if (status == OS_SUCCESS)
                 {
-                    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
+                    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter++;
                 }
                 else
                 {
@@ -441,7 +433,7 @@ void GENERIC_RADIO_ReportHousekeeping(void)
                                      (GENERIC_RADIO_Device_HK_tlm_t *)&GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK);
     if (status == OS_SUCCESS)
     {
-        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount++;
+        GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter++;
     }
     else
     {
@@ -464,9 +456,11 @@ void GENERIC_RADIO_ResetCounters(void)
     GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.CommandCount      = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount  = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceCount       = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardErrorCount = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount      = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceConfig  = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.ProxSignal    = 0;
     return;
 }
 
@@ -483,7 +477,7 @@ int32 GENERIC_RADIO_VerifyCmdLength(CFE_MSG_Message_t *msg, uint16 expected_leng
     CFE_MSG_GetSize(msg, &actual_length);
     if (expected_length == actual_length)
     {
-        /* Increment the command counter upon receipt of an invalid command */
+        /* Increment the command counter upon receipt of a valid command */
         GENERIC_RADIO_AppData.HkTelemetryPkt.CommandCount++;
     }
     else
