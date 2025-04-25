@@ -42,7 +42,7 @@ namespace Nos3
         void command_callback(NosEngine::Common::Message msg); /* Handle backdoor commands and time tick to the simulator */
 
         const int GENERIC_RADIO_SIM_SUCCESS = 0;
-        const int GENERIC_RADIO_SIM_ERROR = 0;
+        const int GENERIC_RADIO_SIM_ERROR = 1;
 
         typedef struct 
         {

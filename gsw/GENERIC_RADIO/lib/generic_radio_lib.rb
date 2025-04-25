@@ -60,11 +60,12 @@ def safe_GENERIC_RADIO()
 end
 
 def confirm_GENERIC_RADIO_data()
-    dev_cmd_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNT")
+    dev_cmd_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNTER")
     dev_cmd_err_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT")
     
     get_GENERIC_RADIO_hk()
-    check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNT >= #{dev_cmd_cnt}")
+    sleep 1
+    check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNTER >= #{dev_cmd_cnt}")
     check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT == #{dev_cmd_err_cnt}")
 end
 
@@ -77,7 +78,7 @@ end
 #
 # Simulator Functions
 #
-def GENERIC_RADIO_prepare_ast()
+def generic_radio_prepare_ast()
     # Get to known state
     safe_GENERIC_RADIO()
 
@@ -85,10 +86,10 @@ def GENERIC_RADIO_prepare_ast()
     confirm_GENERIC_RADIO_data_loop()
 end
 
-def GENERIC_RADIO_sim_enable()
+def generic_radio_sim_enable()
     cmd("SIM_CMDBUS_BRIDGE GENERIC_RADIO_SIM_ENABLE")
 end
 
-def GENERIC_RADIO_sim_disable()
+def generic_radio_sim_disable()
     cmd("SIM_CMDBUS_BRIDGE GENERIC_RADIO_SIM_DISABLE")
 end
