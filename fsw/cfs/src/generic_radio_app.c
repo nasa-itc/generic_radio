@@ -453,11 +453,11 @@ void GENERIC_RADIO_ReportHousekeeping(void)
 */
 void GENERIC_RADIO_ResetCounters(void)
 {
-    GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.CommandCount      = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount  = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardErrorCount = 0;
-    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount      = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.CommandErrorCount      = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.CommandCount           = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceErrorCount       = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardErrorCount      = 0;
+    GENERIC_RADIO_AppData.HkTelemetryPkt.ForwardCount           = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceCounter = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.DeviceConfig  = 0;
     GENERIC_RADIO_AppData.HkTelemetryPkt.DeviceHK.ProxSignal    = 0;
