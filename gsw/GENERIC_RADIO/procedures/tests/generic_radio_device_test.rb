@@ -11,6 +11,4 @@ GENERIC_RADIO_TEST_LOOP_COUNT.times do |n|
 
   #radio does not have enable/disable functionality, so we just check the device is alive.
   confirm_GENERIC_RADIO_data_loop()
-
-
 end

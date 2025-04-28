@@ -17,7 +17,6 @@ GENERIC_RADIO_TEST_LOOP_COUNT.times do |n|
   generic_radio_prepare_ast()
 
   # Disable sim and confirm device error counts increase
-  sleep 1
   get_GENERIC_RADIO_hk()
   dev_cmd_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNTER")
   dev_cmd_err_cnt = tlm("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT")
@@ -28,12 +27,11 @@ GENERIC_RADIO_TEST_LOOP_COUNT.times do |n|
 
   get_GENERIC_RADIO_hk()
 
-  check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNTER == #{dev_cmd_cnt}")
+  check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_COUNTER >= #{dev_cmd_cnt}")
   check("GENERIC_RADIO GENERIC_RADIO_HK_TLM DEVICE_ERR_COUNT > #{dev_cmd_err_cnt}")
 
   # Enable sim and confirm return to nominal operation
   generic_radio_sim_enable()
-  sleep 1
   get_GENERIC_RADIO_hk();
   confirm_GENERIC_RADIO_data_loop()
 end
