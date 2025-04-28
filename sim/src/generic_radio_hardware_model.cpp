@@ -195,6 +195,7 @@ namespace Nos3
         {
             _enabled = GENERIC_RADIO_SIM_SUCCESS;
             response = "Generic_radioHardwareModel::command_callback:  Enabled";
+            _keep_running = true;
         }
         else if (command.compare(0,7,"DISABLE") == 0) 
         {
@@ -206,7 +207,6 @@ namespace Nos3
         }
         else if (command.compare(0,4,"STOP") == 0) 
         {
-            _keep_running = false;
             response = "Generic_radioHardwareModel::command_callback:  Stopping";
         }
 

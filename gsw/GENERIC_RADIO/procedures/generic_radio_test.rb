@@ -1,43 +1,51 @@
 require 'cosmos'
 require 'cosmos/script'
-require 'mission_lib.rb'
+require "generic_radio_lib.rb"
 
-class LPT < Cosmos::Test
+class GENERIC_RADIO_Functional_Test < Cosmos::Test
   def setup
-      enable_TO_and_verify()
+      safe_GENERIC_RADIO()
   end
 
-  def test_lpt
+  def test_application
+    start("tests/generic_radio_app_test.rb")
+  end
+
+  def test_device
+    start("tests/generic_radio_device_test.rb")
   end
 
   def teardown
-      cmd("CFS_RADIO TO_PAUSE_OUTPUT")
+    safe_GENERIC_RADIO()
   end
 end
 
-class CPT < Cosmos::Test
+class GENERIC_RADIO_Scenario_Test < Cosmos::Test
   def setup
-      
+    safe_GENERIC_RADIO()
   end
 
-  def test_cpt
+  def test_AST
+    start("tests/generic_radio_ast_test.rb")
   end
 
   def teardown
-
+    safe_GENERIC_RADIO()
   end
 end
 
 class Generic_radio_Test < Cosmos::TestSuite
   def initialize
       super()
-      add_test('CPT')
-      add_test('LPT')
+      add_test('GENERIC_RADIO_Functional_Test')
+      add_test('GENERIC_RADIO_Scenario_Test')
   end
 
   def setup
+    safe_GENERIC_RADIO()
   end
   
   def teardown
+    safe_GENERIC_RADIO()
   end
 end

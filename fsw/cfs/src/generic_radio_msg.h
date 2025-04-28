@@ -65,7 +65,6 @@ typedef struct
     uint8                         CommandErrorCount;
     uint8                         CommandCount;
     uint8                         DeviceErrorCount;
-    uint8                         DeviceCount;
     uint8                         ForwardErrorCount;
     uint8                         ForwardCount;
     GENERIC_RADIO_Device_HK_tlm_t DeviceHK;
