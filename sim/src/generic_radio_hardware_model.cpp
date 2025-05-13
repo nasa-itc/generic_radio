@@ -117,8 +117,8 @@ namespace Nos3
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
         /* Forwarding threads */
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+        new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_gsw_cmd, &_fsw_ci);
+        new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_fsw_to, &_gsw_tlm);
 
         new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
         new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
@@ -302,6 +302,64 @@ namespace Nos3
         return status;
     }
 
+    int32_t Generic_radioHardwareModel::tcp_init(udp_info_t* sock)
+    {
+        int status;
+        int optval;
+        socklen_t optlen;
+
+        /* Create */
+        sock->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        if(sock->sockfd == -1)
+        {
+            sim_logger->info("tcp_init:  Socket create error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+        }
+
+        /* Determine IP */
+        struct sockaddr_in saddr;
+        saddr.sin_family = AF_INET;
+        if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
+        {
+            saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+        }
+        else
+        {
+            char ip[16];
+            int check = host_to_ip(sock->ip.c_str(), ip);
+            sim_logger->info("tcp_init - Initial = %s; Updated = %s; Port = %d \n", sock->ip.c_str(), ip, sock->port);
+            if(check == 0)
+            {
+                saddr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
+        saddr.sin_port = htons(sock->port);
+
+        /* Bind */
+        status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+        if (status != 0)
+        {
+            sim_logger->error(" tcp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+        }
+        else
+        {
+            status = GENERIC_RADIO_SIM_ERROR;
+        }
+
+         /* Listen (for server socket) */
+        status = listen(sock->sockfd, 5);  // backlog of 5
+        if (status != 0)
+        {
+            sim_logger->error("tcp_init: Socket listen error on port %d", sock->port);
+            status = GENERIC_RADIO_SIM_ERROR;
+        }        
+
+        /* Keep Alive */
+        optval = 1;
+        optlen = sizeof(optval);
+        setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
+
+        return status;
+    }
 
     void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock)
     {
@@ -331,6 +389,61 @@ namespace Nos3
         fwd_addr.sin_port = htons(fwd_sock->port);
 
         udp_init(rcv_sock);
+
+        sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
+
+        while(_keep_running)
+        {
+            bytes_recvd = 0;
+
+            /* Receive */
+            status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
+            if (status != -1)
+            {
+                bytes_recvd = status;
+
+                /* Debug print */
+                sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+
+                /* Forward */
+                status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
+                if ((status == -1) || (status != (int)bytes_recvd))
+                {
+                    sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, status, bytes_recvd);
+                }
+            }
+        }
+        close(rcv_sock->sockfd);
+    }
+
+    void Generic_radioHardwareModel::tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock)
+    {
+        int status;
+        uint8_t sock_buffer[8192];
+        size_t bytes_recvd;
+
+        struct sockaddr_in rcv_addr;
+        struct sockaddr_in fwd_addr;
+        int sockaddr_size = sizeof(struct sockaddr_in);
+
+        fwd_addr.sin_family = AF_INET;
+        if(inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
+        {
+            fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+        }
+        else
+        {
+            char ip[16];
+            int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+            sim_logger->info(" tcp forward_loop - Initial = %s; Updated = %s; Port = %d \n", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+            if(check == 0)
+            {
+                fwd_addr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
+        fwd_addr.sin_port = htons(fwd_sock->port);
+
+        tcp_init(rcv_sock);
 
         sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
 
