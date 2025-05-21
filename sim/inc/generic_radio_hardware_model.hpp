@@ -49,6 +49,7 @@ namespace Nos3
             int sockfd;
             std::string ip;
             int port;
+            int clientfd;
         } udp_info_t;
 
         // typedef struct 
