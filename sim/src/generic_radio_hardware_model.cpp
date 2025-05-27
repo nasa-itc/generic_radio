@@ -465,7 +465,7 @@ namespace Nos3
         //forwarding udp data to tcp (going to radio then to cyrptolib) (recv_sock needs to be udp)
 
             int status;
-            uint8_t sock_buffer[8192];
+            uint8_t sock_buffer[1790];
             size_t bytes_recvd;
 
             struct sockaddr_in rcv_addr;
