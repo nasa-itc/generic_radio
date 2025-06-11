@@ -6,20 +6,38 @@ module Components {
         # This should be overridden by the developers with a useful command/port
 
         @ Command to Request Housekeeping
-        async command REQUEST_HOUSEKEEPING(
+        async command REQUEST_HOUSEKEEPING()
+
+        @ Command to Request Noop
+        async command NOOP()
+
+        @ Config Command
+        async command CONFIG(
+            config_value: U32
         )
 
-        #@ Command to Request Noop
-        #async command NOOP(
-        #)
+        @ Reset Counters Command
+        async command RESET_COUNTERS()
 
-        @ event with maximum length of 30 characters
+        @ event with maximum length of 40 characters
         event TELEM(
-            log_info: string size 30 @< 
+            log_info: string size 40 @< 
         ) severity activity high format "Generic_radio: {}"
 
+        @ Command Count
+        telemetry CommandCount: U32
+
+        @ Command Error Count
+        telemetry CommandErrorCount: U32
+
+        @ Device Count
+        telemetry DeviceCount: U32
+
+        @ Device Error Count
+        telemetry DeviceErrorCount: U32
+
         @ A count of the number of greetings issued
-        telemetry DeviceCounter: U32
+        telemetry ReportedComponentCount: U32
 
          @ A count of the number of greetings issued
         telemetry DeviceConfig: U32

@@ -9,6 +9,20 @@
 
 #include "radio_src/Generic_radioComponentAc.hpp"
 
+
+extern "C"{
+#include "generic_radio_device.h"
+}
+
+typedef struct
+{
+    uint8_t                         DeviceCount;
+    uint8_t                         DeviceErrorCount;
+    uint8_t                         CommandErrorCount;
+    uint8_t                         CommandCount;
+} RADIO_Hk_tlm_t;
+#define RADIO_HK_TLM_LNGTH sizeof(RADIO_Hk_tlm_t)
+
 namespace Components {
 
   class Generic_radio :
@@ -16,6 +30,14 @@ namespace Components {
   {
 
     public:
+
+
+    socket_info_t RadioSocket;
+    socket_info_t ProxSocket;
+    GENERIC_RADIO_Device_HK_tlm_t RadioHK;
+    RADIO_Hk_tlm_t HkTelemetryPkt;
+    uint8_t RadioData;
+    uint16_t SCID = 0x42;
 
       // ----------------------------------------------------------------------
       // Component construction and destruction
@@ -48,10 +70,21 @@ namespace Components {
         U32 cmdSeq
       );
 
-      // void NOOP_cmdHandler(
-      //   FwOpcodeType opCode, 
-      //   U32 cmdSeq
-      // ) override;
+      void NOOP_cmdHandler(
+        FwOpcodeType opCode, 
+        U32 cmdSeq
+      ) override;
+
+      void CONFIG_cmdHandler(
+        FwOpcodeType opCode,
+        U32 cmdSeq,
+        U32 config_value
+      ) override;
+
+      void RESET_COUNTERS_cmdHandler(
+        FwOpcodeType opCode,
+        U32 cmdSeq
+      ) override;
 
   };
 
