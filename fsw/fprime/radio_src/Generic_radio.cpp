@@ -62,8 +62,6 @@ namespace Components {
             printf("GENERIC_RADIO: Radio Interface %d created successfully!\n", RadioSocket.sockfd);
         }
 
-        OS_printf("port: %d; IP: %s \n", RadioSocket.port_num, RadioSocket.ip_address);
-
         ProxSocket.sockfd = -1;
         ProxSocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
         ProxSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
@@ -88,9 +86,6 @@ namespace Components {
             printf("GENERIC_RADIO: Proximity Interface %d created successfully!\n", ProxSocket.sockfd);
         }
 
-        OS_printf("port: %d; IP: %s \n", ProxSocket.port_num, ProxSocket.ip_address);
-
-
         HkTelemetryPkt.CommandCount = 0;
         HkTelemetryPkt.CommandErrorCount = 0;
         HkTelemetryPkt.DeviceCount = 0;
@@ -111,7 +106,6 @@ namespace Components {
     HkTelemetryPkt.CommandCount++;
 
     this->log_ACTIVITY_HI_TELEM("NOOP command success!");
-    OS_printf("NOOP command successful!\n");
     this->tlmWrite_CommandCount(HkTelemetryPkt.CommandCount);
 
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
@@ -126,13 +120,11 @@ namespace Components {
     {
       HkTelemetryPkt.DeviceCount++;
       this->log_ACTIVITY_HI_TELEM("Config command successful!");
-      OS_printf("Config command successful!\n");
     }
     else
     {
       HkTelemetryPkt.DeviceErrorCount++;
       this->log_ACTIVITY_HI_TELEM("Config command failed!");
-      OS_printf("Config command failed!\n");
     }
 
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
@@ -145,7 +137,6 @@ namespace Components {
     HkTelemetryPkt.DeviceErrorCount = 0;
 
     this->log_ACTIVITY_HI_TELEM("Reset Counters command successful!");
-    OS_printf("Reset Counters command successful!\n");
     this->tlmWrite_CommandCount(HkTelemetryPkt.CommandCount);
     this->tlmWrite_CommandErrorCount(HkTelemetryPkt.CommandErrorCount);
     this->tlmWrite_DeviceCount(HkTelemetryPkt.DeviceCount);
@@ -164,12 +155,10 @@ namespace Components {
     if (status == OS_SUCCESS)
     {
         this->log_ACTIVITY_HI_TELEM("RequestHK command success\n");
-        OS_printf("GENERIC_RADIO_RequestHK command success!\n");
     }
     else
     {
         this->log_ACTIVITY_HI_TELEM("RequestHK command failed!\n");
-        OS_printf("GENERIC_RADIO_RequestHK command failed!\n");
     }
 
     this->tlmWrite_ReportedComponentCount(RadioHK.DeviceCounter);
