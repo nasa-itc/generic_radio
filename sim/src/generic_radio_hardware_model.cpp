@@ -41,7 +41,7 @@ namespace Nos3
         _prox_dest.ip = "0.0.0.0";
         _prox_dest.port = 7013;
 
-        int tcp_true = 1; //if 1, use tcp with cryptolib, if 0 use udp.
+        int tcp_true = TCP_GROUND; //if 1, use tcp with cryptolib, if 0 use udp.
 
         sleep(5);
 
@@ -121,7 +121,6 @@ namespace Nos3
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
         /* Forwarding threads */
-
         if(tcp_true == 1)
         {
             //TCP with Cryptolib
@@ -299,12 +298,12 @@ namespace Nos3
         saddr.sin_port = htons(sock->port);
 
         /* Bind */
-        if(sock->port != 5010)
+        if (sock->port != 5010)
         {
             status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
             if (status != 0)
             {
-                sim_logger->error(" udp_init:  Socket bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+                sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
             }
             else
             {
@@ -404,6 +403,7 @@ namespace Nos3
 
         return 0;
     }
+
 
     void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock)
     {
