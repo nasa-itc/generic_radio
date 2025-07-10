@@ -41,6 +41,10 @@ namespace Nos3
         _prox_dest.ip = "0.0.0.0";
         _prox_dest.port = 7013;
 
+        int tcp_true = TCP_GROUND; //if 1, use tcp with cryptolib, if 0 use udp.
+
+        sleep(5);
+
         if (config.get_child_optional("simulator.hardware-model.connections")) 
         {
             /* Loop through the connections for hardware model */
@@ -117,8 +121,18 @@ namespace Nos3
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
         /* Forwarding threads */
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+        if(tcp_true == 1)
+        {
+            //TCP with Cryptolib
+            new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_gsw_cmd, &_fsw_ci, 1); //fsw_ci needs to be udp, tcp to udp, rcv_sock is gsw_cmd (8010 5010)
+            new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_fsw_to, &_gsw_tlm, 0); //forwarding udp data to tcp, fsw_to needs to be udp, rcv_sock is fsw_to (8011 5011)
+        }
+        else
+        {
+            //UDP with cryptolib
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+        }
 
         new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
         new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
@@ -284,14 +298,17 @@ namespace Nos3
         saddr.sin_port = htons(sock->port);
 
         /* Bind */
-        status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
-        if (status != 0)
+        if (sock->port != 5010)
         {
-            sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-        }
-        else
-        {
-            status = GENERIC_RADIO_SIM_ERROR;
+            status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+            if (status != 0)
+            {
+                sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+            }
+            else
+            {
+                status = GENERIC_RADIO_SIM_ERROR;
+            }
         }
 
         /* Keep Alive */
@@ -300,6 +317,91 @@ namespace Nos3
         setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
 
         return status;
+    }
+
+    int32_t Generic_radioHardwareModel::tcp_init(udp_info_t* sock)
+    {
+        int status;
+        int optval;
+        socklen_t optlen;
+
+        // Create socket
+        sock->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (sock->sockfd == -1)
+        {
+            sim_logger->error("tcp_init: Socket create error with ip %s, port %d", sock->ip.c_str(), sock->port);
+            return GENERIC_RADIO_SIM_ERROR;
+        }
+
+        // Fill in server address (where this socket listens)
+        struct sockaddr_in saddr;
+        saddr.sin_family = AF_INET;
+        saddr.sin_port = htons(sock->port);
+
+        if (inet_addr(sock->ip.c_str()) != INADDR_NONE)
+        {
+            saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+        }
+        else
+        {
+            char ip[16] = {0};
+            if (host_to_ip(sock->ip.c_str(), ip) == 0)
+            {
+                saddr.sin_addr.s_addr = inet_addr(ip);
+            }
+            else
+            {
+                sim_logger->error("tcp_init: Invalid IP resolution for %s", sock->ip.c_str());
+                return GENERIC_RADIO_SIM_ERROR;
+            }
+        }
+
+        // Bind to local IP and port
+        status = bind(sock->sockfd, (struct sockaddr*)&saddr, sizeof(saddr));
+        if (status != 0)
+        {
+            sim_logger->error("tcp_init: Bind failed on %s:%d", sock->ip.c_str(), sock->port);
+            return GENERIC_RADIO_SIM_ERROR;
+        }
+
+        sim_logger->info("tcp_init: Bound to %s:%d", sock->ip.c_str(), sock->port);
+
+        // Listen for connections
+        status = listen(sock->sockfd, 5);
+        if (status != 0)
+        {
+            sim_logger->error("tcp_init: Listen failed on port %d", sock->port);
+            return GENERIC_RADIO_SIM_ERROR;
+        }
+
+        sim_logger->info("Waiting for TCP connection...\n");
+
+        // Accept incoming connection
+        struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int clientfd = accept(sock->sockfd, (struct sockaddr*)&client_addr, &client_len);
+        if (clientfd < 0)
+        {
+            sim_logger->error("tcp_init: Accept failed");
+            return GENERIC_RADIO_SIM_ERROR;
+        }
+
+        // Extract and log client info
+        char client_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(client_addr.sin_addr), client_ip, INET_ADDRSTRLEN);
+        int client_port = ntohs(client_addr.sin_port);
+
+        sim_logger->info("tcp_init: Connection accepted from %s:%d", client_ip, client_port);
+
+        // Enable TCP keep-alive
+        optval = 1;
+        optlen = sizeof(optval);
+        setsockopt(clientfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);
+
+        // Save the accepted client socket fd (you need a place for this in your struct)
+        sock->clientfd = clientfd; // You must define this in your `udp_info_t` if not already
+
+        return 0;
     }
 
 
@@ -344,8 +446,8 @@ namespace Nos3
             {
                 bytes_recvd = status;
 
-                /* Debug print */
-                sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+                // /* Debug print */
+                // sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
 
                 /* Forward */
                 status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
@@ -356,6 +458,164 @@ namespace Nos3
             }
         }
         close(rcv_sock->sockfd);
+    }
+
+    void Generic_radioHardwareModel::tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction)
+    {
+        /*
+        if direction = 0, this means going from udp to tcp (fsw to radio to cryptolib)
+        if direction = 1, this means going from tcp to udp (cryptolib to radio to fsw)
+        */
+
+       if (direction == 0)
+       {
+        //forwarding udp data to tcp (going to radio then to cyrptolib) (recv_sock needs to be udp)
+
+            int status;
+            uint8_t sock_buffer[8192];
+            size_t bytes_recvd;
+
+            struct sockaddr_in rcv_addr;
+            int sockaddr_size = sizeof(struct sockaddr_in);
+
+            // Initialize UDP receiving socket
+            udp_init(rcv_sock);
+
+            // Initialize TCP socket for forwarding
+            fwd_sock->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            if (fwd_sock->sockfd < 0)
+            {
+                sim_logger->error("Generic_radioHardwareModel::forward_loop: Failed to create TCP socket");
+                return;
+            }
+
+            struct sockaddr_in tcp_addr;
+            tcp_addr.sin_family = AF_INET;
+            tcp_addr.sin_port = htons(fwd_sock->port);
+
+            if (inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
+            {
+                tcp_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+            }
+            else
+            {
+                char ip[16];
+                int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+                sim_logger->info("forward_loop - Initial = %s; Updated = %s; Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+                if (check != 0)
+                {
+                    sim_logger->error("Generic_radioHardwareModel::forward_loop: Failed to resolve IP for %s", fwd_sock->ip.c_str());
+                    return;
+                }
+                tcp_addr.sin_addr.s_addr = inet_addr(ip);
+            }
+
+            char ip[INET_ADDRSTRLEN] = {0};
+            int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+            if (check !=0)
+            {
+                sim_logger->error("forward_loop - Failed to resolve hostname: %s", fwd_sock->ip.c_str());
+            }
+            sim_logger->info("forward_loop - Hostname = %s, Resolved IP = %s, Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+            sleep(10);
+
+            if (connect(fwd_sock->sockfd, (struct sockaddr*)&tcp_addr, sizeof(tcp_addr)) < 0)
+            {
+                sim_logger->error("Generic_radioHardwareModel::forward_loop: Failed to connect to TCP server %s:%d", fwd_sock->ip.c_str(), fwd_sock->port);
+                return;
+            }
+
+            sim_logger->debug("Generic_radioHardwareModel::forward_loop: (UDP->TCP): UDP %s:%d to TCP %s:%d",
+                            rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
+
+            while (_keep_running)
+            {
+                bytes_recvd = 0;
+
+                // Receive from UDP
+                status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0,
+                                (sockaddr*)&rcv_addr, (socklen_t*)&sockaddr_size);
+                if (status != -1)
+                {
+                    bytes_recvd = status;
+
+                    // log to check status of bytes received from udp to be forwarded to tcp
+                    // sim_logger->debug("Generic_radioHardwareModel::forward_loop: received %ld bytes from UDP %s:%d",
+                    //                 bytes_recvd, rcv_sock->ip.c_str(), rcv_sock->port);
+
+                    // Forward to TCP
+                    status = send(fwd_sock->sockfd, sock_buffer, bytes_recvd, 0);
+                    if ((status == -1) || (status != (int)bytes_recvd))
+                    {
+                        sim_logger->error("Generic_radioHardwareModel::forward_loop: only forwarded %d/%ld bytes to TCP %s:%d",
+                                        status, bytes_recvd, fwd_sock->ip.c_str(), fwd_sock->port);
+                    }
+                }
+            }
+
+            close(rcv_sock->sockfd);
+            close(fwd_sock->sockfd);
+       }
+       else
+       {
+        //forwarding tcp data to udp (going to fsw) fwd sock needs to be udp
+            int status;
+            uint8_t sock_buffer[8192];
+            size_t bytes_recvd;
+
+            struct sockaddr_in fwd_addr;
+
+            // Resolve UDP forwarding address
+            fwd_addr.sin_family = AF_INET;
+            if (inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
+            {
+                fwd_addr.sin_addr.s_addr = inet_addr(fwd_sock->ip.c_str());
+            }
+            else
+            {
+                char ip[16] = {0};
+                int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+                sim_logger->info("forward_loop - Initial = %s; Updated = %s; Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+                if (check == 0)
+                {
+                    fwd_addr.sin_addr.s_addr = inet_addr(ip);
+                }
+            }
+            fwd_addr.sin_port = htons(fwd_sock->port);
+
+            tcp_init(rcv_sock);
+
+            udp_init(fwd_sock); // Only init the UDP socket since TCP is already connected
+
+            sim_logger->debug("Generic_radioHardwareModel::forward_loop (TCP→UDP): TCP %s:%d to UDP %s:%d",
+                            rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
+
+            while (_keep_running)
+            {
+                /* Receive from TCP socket */
+                status = recv(rcv_sock->clientfd, sock_buffer, sizeof(sock_buffer), 0);
+                if (status > 0)
+                {
+                    bytes_recvd = status;
+
+                    sim_logger->debug("forward_loop: TCP %s:%d received %ld bytes",
+                                    rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
+
+                    /* Forward to UDP socket */
+                    status = sendto(fwd_sock->sockfd, sock_buffer, bytes_recvd, 0,
+                                    (sockaddr*)&fwd_addr, sizeof(fwd_addr));
+                    if ((status == -1) || (status != (int)bytes_recvd))
+                    {
+                        sim_logger->error("forward_loop: UDP forward only sent %d/%ld bytes",
+                                        status, bytes_recvd);
+                    }
+                }
+            }
+
+            close(rcv_sock->sockfd);
+            close(fwd_sock->sockfd);
+        }
+        
     }
 
 

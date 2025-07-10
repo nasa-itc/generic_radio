@@ -49,11 +49,21 @@ namespace Nos3
             int sockfd;
             std::string ip;
             int port;
+            int clientfd;
         } udp_info_t;
+
+        // typedef struct 
+        // {
+        //     int sockfd;
+        //     std::string ip;
+        //     int port;
+        // } tcp_info_t;
 
         int32_t host_to_ip(const char * hostname, char* ip);
         int32_t udp_init(udp_info_t* sock);
+        int32_t tcp_init(udp_info_t* sock);
         void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
+        void tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
 
         udp_info_t                                          _fsw_ci;
         udp_info_t                                          _fsw_to;
