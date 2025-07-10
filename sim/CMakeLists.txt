@@ -28,22 +28,12 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:$ORIGIN/../lib") # Pick up .so i
 
 add_library(generic_radio_sim SHARED ${generic_radio_sim_src} ${generic_radio_sim_inc})
 
-# Run the shell command to extract <gsw>...</gsw>
-execute_process(
-    COMMAND bash -c "sed -n 's:.*<gsw>\\(.*\\)</gsw>.*:\\1:p' ../../cfg/nos3-mission.xml"
-    OUTPUT_VARIABLE gsw_raw
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+
 
 # Set gsw_flag to 1 if output is "yamcs", else 0
-if ("${gsw_raw}" STREQUAL "yamcs")
-    set(gsw_flag 1)
-else()
-    set(gsw_flag 0)
-endif()
+set(gsw_flag 1)
+# set(gsw_flag 0) ## set to 0 if using udp only.
 
-message(STATUS "Ground software: ${gsw_raw}")
-message(STATUS "TCP_GROUND set to: ${gsw_flag}")
 
 # Add the preprocessor macro
 target_compile_definitions(generic_radio_sim PUBLIC TCP_GROUND=${gsw_flag})
