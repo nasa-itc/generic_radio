@@ -2,7 +2,7 @@
 ** File: generic_radio_checkout.c
 **
 ** Purpose:
-**   This checkout can be run without cFS and is used to quickly develop and 
+**   This checkout can be run without cFS and is used to quickly develop and
 **   test functions required for a specific component.
 **
 *******************************************************************************/
@@ -15,90 +15,87 @@
 /*
 ** Global Variables
 */
-socket_info_t RadioSocket;
-socket_info_t ProxSocket;
+socket_info_t                 RadioSocket;
+socket_info_t                 ProxSocket;
 GENERIC_RADIO_Device_HK_tlm_t RadioHK;
-uint8_t RadioData;
-uint16_t SCID = 0x42;
+uint8_t                       RadioData;
+uint16_t                      SCID = 0x42;
 
 /*
 ** Component Functions
 */
-void print_help(void) 
+void print_help(void)
 {
     printf(PROMPT "command [args]\n"
-        "---------------------------------------------------------------------\n"
-        "help                               - Display help                    \n"
-        "exit                               - Exit app                        \n"
-        "hk                                 - Request device housekeeping     \n"
-        "  h                                - ^                               \n"
-        "proxforward                        - Perform a Proximity Forward     \n"
-        "  p                                - ^                               \n"
-        "cfg #                              - Send configuration #            \n"
-        "  c #                              - ^                               \n"
-        "\n"
-    );
+                  "---------------------------------------------------------------------\n"
+                  "help                               - Display help                    \n"
+                  "exit                               - Exit app                        \n"
+                  "hk                                 - Request device housekeeping     \n"
+                  "  h                                - ^                               \n"
+                  "proxforward                        - Perform a Proximity Forward     \n"
+                  "  p                                - ^                               \n"
+                  "cfg #                              - Send configuration #            \n"
+                  "  c #                              - ^                               \n"
+                  "\n");
 }
 
-
-int get_command(const char* str)
+int get_command(const char *str)
 {
-    int status = CMD_UNKNOWN;
+    int  status = CMD_UNKNOWN;
     char lcmd[MAX_INPUT_TOKEN_SIZE];
     strncpy(lcmd, str, MAX_INPUT_TOKEN_SIZE);
 
     /* Convert command to lower case */
     to_lower(lcmd);
 
-    if(strcmp(lcmd, "help") == 0) 
+    if (strcmp(lcmd, "help") == 0)
     {
         status = CMD_HELP;
     }
-    else if(strcmp(lcmd, "exit") == 0) 
+    else if (strcmp(lcmd, "exit") == 0)
     {
         status = CMD_EXIT;
     }
-    else if(strcmp(lcmd, "hk") == 0) 
+    else if (strcmp(lcmd, "hk") == 0)
     {
         status = CMD_HK;
     }
-    else if(strcmp(lcmd, "h") == 0) 
+    else if (strcmp(lcmd, "h") == 0)
     {
         status = CMD_HK;
     }
-    else if(strcmp(lcmd, "proxforward") == 0) 
+    else if (strcmp(lcmd, "proxforward") == 0)
     {
         status = CMD_PROX_FORWARD;
     }
-    else if(strcmp(lcmd, "p") == 0) 
+    else if (strcmp(lcmd, "p") == 0)
     {
         status = CMD_PROX_FORWARD;
     }
-    else if(strcmp(lcmd, "cfg") == 0) 
+    else if (strcmp(lcmd, "cfg") == 0)
     {
         status = CMD_CFG;
     }
-    else if(strcmp(lcmd, "c") == 0) 
+    else if (strcmp(lcmd, "c") == 0)
     {
         status = CMD_CFG;
     }
     return status;
 }
 
-
 int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_INPUT_TOKEN_SIZE])
 {
-    int32_t status = OS_SUCCESS;
-    int32_t exit_status = OS_SUCCESS;
+    int32_t  status      = OS_SUCCESS;
+    int32_t  exit_status = OS_SUCCESS;
     uint32_t config;
 
     /* Process command */
-    switch(cc) 
-    {	
+    switch (cc)
+    {
         case CMD_HELP:
             print_help();
             break;
-        
+
         case CMD_EXIT:
             exit_status = OS_ERROR;
             break;
@@ -116,7 +113,6 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
                     OS_printf("  Device Config: 0x%07X\n", RadioHK.DeviceConfig);
                     OS_printf("  Prox Signal:     %u\n", RadioHK.ProxSignal);
                     OS_printf("\n");
-
                 }
                 else
                 {
@@ -155,45 +151,44 @@ int process_command(int cc, int num_tokens, char tokens[MAX_INPUT_TOKENS][MAX_IN
                 }
             }
             break;
-        
-        default: 
+
+        default:
             OS_printf("Invalid command format, type 'help' for more info\n");
             break;
     }
     return exit_status;
 }
 
-
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
-    int status = OS_SUCCESS;
-    char input_buf[MAX_INPUT_BUF];
-    char input_tokens[MAX_INPUT_TOKENS][MAX_INPUT_TOKEN_SIZE];
-    int num_input_tokens;
-    int cmd;    
-    char* token_ptr;
+    int     status = OS_SUCCESS;
+    char    input_buf[MAX_INPUT_BUF];
+    char    input_tokens[MAX_INPUT_TOKENS][MAX_INPUT_TOKEN_SIZE];
+    int     num_input_tokens;
+    int     cmd;
+    char   *token_ptr;
     uint8_t run_status = OS_SUCCESS;
 
-    /* Initialize HWLIB */
-    #ifdef _NOS_ENGINE_LINK_
-        nos_init_link();
-    #endif
+/* Initialize HWLIB */
+#ifdef _NOS_ENGINE_LINK_
+    nos_init_link();
+#endif
 
     /*
     ** Initialize sockets
     */
-    RadioSocket.sockfd = -1;
-    RadioSocket.port_num = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
-    RadioSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
+    RadioSocket.sockfd         = -1;
+    RadioSocket.port_num       = GENERIC_RADIO_CFG_UDP_RADIO_TO_FSW;
+    RadioSocket.ip_address     = GENERIC_RADIO_CFG_FSW_IP;
     RadioSocket.address_family = ip_ver_4;
-    RadioSocket.type = dgram;
-    RadioSocket.category = client;
-    RadioSocket.block = false;
-    RadioSocket.keep_alive = false;
-    RadioSocket.created = false;
-    RadioSocket.bound = false;
-    RadioSocket.listening = false;
-    RadioSocket.connected = false;
+    RadioSocket.type           = dgram;
+    RadioSocket.category       = client;
+    RadioSocket.block          = false;
+    RadioSocket.keep_alive     = false;
+    RadioSocket.created        = false;
+    RadioSocket.bound          = false;
+    RadioSocket.listening      = false;
+    RadioSocket.connected      = false;
 
     status = socket_create(&RadioSocket);
     if (status != SOCKET_SUCCESS)
@@ -208,18 +203,18 @@ int main(int argc, char *argv[])
 
     OS_printf("port: %d; IP: %s \n", RadioSocket.port_num, RadioSocket.ip_address);
 
-    ProxSocket.sockfd = -1;
-    ProxSocket.port_num = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
-    ProxSocket.ip_address = GENERIC_RADIO_CFG_FSW_IP;
+    ProxSocket.sockfd         = -1;
+    ProxSocket.port_num       = GENERIC_RADIO_CFG_UDP_PROX_TO_FSW;
+    ProxSocket.ip_address     = GENERIC_RADIO_CFG_FSW_IP;
     ProxSocket.address_family = ip_ver_4;
-    ProxSocket.type = dgram;
-    ProxSocket.category = client;
-    ProxSocket.block = false;
-    ProxSocket.keep_alive = false;
-    ProxSocket.created = false;
-    ProxSocket.bound = false;
-    ProxSocket.listening = false;
-    ProxSocket.connected = false;
+    ProxSocket.type           = dgram;
+    ProxSocket.category       = client;
+    ProxSocket.block          = false;
+    ProxSocket.keep_alive     = false;
+    ProxSocket.created        = false;
+    ProxSocket.bound          = false;
+    ProxSocket.listening      = false;
+    ProxSocket.connected      = false;
 
     status = socket_create(&ProxSocket);
     if (status != SOCKET_SUCCESS)
@@ -236,10 +231,10 @@ int main(int argc, char *argv[])
 
     /* Main loop */
     print_help();
-    while(run_status == OS_SUCCESS) 
+    while (run_status == OS_SUCCESS)
     {
         num_input_tokens = -1;
-        cmd = CMD_UNKNOWN;
+        cmd              = CMD_UNKNOWN;
 
         /* Read user input */
         printf(PROMPT);
@@ -247,14 +242,14 @@ int main(int argc, char *argv[])
 
         /* Tokenize line buffer */
         token_ptr = strtok(input_buf, " \t\n");
-        while((num_input_tokens < MAX_INPUT_TOKENS) && (token_ptr != NULL)) 
+        while ((num_input_tokens < MAX_INPUT_TOKENS) && (token_ptr != NULL))
         {
-            if(num_input_tokens == -1) 
+            if (num_input_tokens == -1)
             {
                 /* First token is command */
                 cmd = get_command(token_ptr);
             }
-            else 
+            else
             {
                 strncpy(input_tokens[num_input_tokens], token_ptr, MAX_INPUT_TOKEN_SIZE);
             }
@@ -263,32 +258,30 @@ int main(int argc, char *argv[])
         }
 
         /* Process command if valid */
-        if(num_input_tokens >= 0)
+        if (num_input_tokens >= 0)
         {
             /* Process command */
             run_status = process_command(cmd, num_input_tokens, input_tokens);
         }
     }
 
-    if( RadioSocket.sockfd != -1 )
+    if (RadioSocket.sockfd != -1)
     {
         socket_close(&RadioSocket);
     }
 
-    if( ProxSocket.sockfd != -1 )
+    if (ProxSocket.sockfd != -1)
     {
         socket_close(&ProxSocket);
     }
-    
 
-    #ifdef _NOS_ENGINE_LINK_
-        nos_destroy_link();
-    #endif
+#ifdef _NOS_ENGINE_LINK_
+    nos_destroy_link();
+#endif
 
-    OS_printf("Cleanly exiting generic_radio application...\n\n"); 
+    OS_printf("Cleanly exiting generic_radio application...\n\n");
     return 1;
 }
-
 
 /*
 ** Generic Functions
@@ -304,14 +297,13 @@ int check_number_arguments(int actual, int expected)
     return status;
 }
 
-void to_lower(char* str)
+void to_lower(char *str)
 {
-    char* ptr = str;
-    while(*ptr)
+    char *ptr = str;
+    while (*ptr)
     {
-        *ptr = tolower((unsigned char) *ptr);
+        *ptr = tolower((unsigned char)*ptr);
         ptr++;
     }
     return;
 }
-

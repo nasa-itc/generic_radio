@@ -27,5 +27,16 @@ set(generic_radio_sim_libs
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:$ORIGIN/../lib") # Pick up .so in install directory
 
 add_library(generic_radio_sim SHARED ${generic_radio_sim_src} ${generic_radio_sim_inc})
+
+
+
+# Set gsw_flag to 1 if output is "yamcs", else 0
+set(gsw_flag 1)
+# set(gsw_flag 0) ## set to 0 if using udp only.
+
+
+# Add the preprocessor macro
+target_compile_definitions(generic_radio_sim PUBLIC TCP_GROUND=${gsw_flag})
+
 target_link_libraries(generic_radio_sim ${generic_radio_sim_libs})
 install(TARGETS generic_radio_sim LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
