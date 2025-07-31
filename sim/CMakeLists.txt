@@ -30,13 +30,47 @@ add_library(generic_radio_sim SHARED ${generic_radio_sim_src} ${generic_radio_si
 
 
 
-# Set gsw_flag to 1 if output is "yamcs", else 0
+# Set gsw_flag to 1 if TCP connection to CryptoLib, else 0
 set(gsw_flag 1)
-# set(gsw_flag 0) ## set to 0 if using udp only.
-
 
 # Add the preprocessor macro
 target_compile_definitions(generic_radio_sim PUBLIC TCP_GROUND=${gsw_flag})
+
+# Function to get a specific variable from env.sh
+function(get_env_var VAR_NAME OUTPUT_VAR)
+    execute_process(
+        COMMAND bash -c "source ../../scripts/env.sh && echo $${VAR_NAME}"
+        OUTPUT_VARIABLE VAR_VALUE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE CMD_RESULT
+    )
+    
+    # Check if command succeeded
+    if(CMD_RESULT)
+        message(FATAL_ERROR "Failed to source env.sh (exit code: ${CMD_RESULT})")
+    endif()
+    
+    set(${OUTPUT_VAR} ${VAR_VALUE} PARENT_SCOPE)
+endfunction()
+
+# Get variables
+get_env_var("RADIO_TX_FSW_PORT" TX_FSW_PORT)
+get_env_var("RADIO_RX_FSW_PORT" RX_FSW_PORT)
+
+# Test the conditions explicitly
+if(TX_FSW_PORT)
+    target_compile_definitions(generic_radio_sim PUBLIC TX_FSW_PORT=${TX_FSW_PORT})
+else()
+    set(TX_FSW_PORT 5010) # Default Value
+    target_compile_definitions(generic_radio_sim PUBLIC TX_FSW_PORT=${TX_FSW_PORT})
+endif()
+
+if(RX_FSW_PORT)
+    target_compile_definitions(generic_radio_sim PUBLIC RX_FSW_PORT=${RX_FSW_PORT})
+else()
+    set(RX_FSW_PORT 5011) # Default Value
+    target_compile_definitions(generic_radio_sim PUBLIC RX_FSW_PORT=${RX_FSW_PORT})
+endif()
 
 target_link_libraries(generic_radio_sim ${generic_radio_sim_libs})
 install(TARGETS generic_radio_sim LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
