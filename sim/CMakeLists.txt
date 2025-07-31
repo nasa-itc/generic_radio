@@ -57,21 +57,19 @@ endfunction()
 get_env_var("RADIO_TX_FSW_PORT" TX_FSW_PORT)
 get_env_var("RADIO_RX_FSW_PORT" RX_FSW_PORT)
 
-# Debug the variables after they're set
-message(STATUS "DEBUG: TX_FSW_PORT value: '${TX_FSW_PORT}'")
-message(STATUS "DEBUG: RX_FSW_PORT value: '${RX_FSW_PORT}'")
-
 # Test the conditions explicitly
 if(TX_FSW_PORT)
     target_compile_definitions(generic_radio_sim PUBLIC TX_FSW_PORT=${TX_FSW_PORT})
 else()
-    message(STATUS "DEBUG: TX_FSW_PORT condition FAILED")
+    set(TX_FSW_PORT 5010) # Default Value
+    target_compile_definitions(generic_radio_sim PUBLIC TX_FSW_PORT=${TX_FSW_PORT})
 endif()
 
 if(RX_FSW_PORT)
     target_compile_definitions(generic_radio_sim PUBLIC RX_FSW_PORT=${RX_FSW_PORT})
 else()
-    message(STATUS "DEBUG: RX_FSW_PORT condition FAILED")
+    set(RX_FSW_PORT 5011) # Default Value
+    target_compile_definitions(generic_radio_sim PUBLIC RX_FSW_PORT=${RX_FSW_PORT})
 endif()
 
 target_link_libraries(generic_radio_sim ${generic_radio_sim_libs})
