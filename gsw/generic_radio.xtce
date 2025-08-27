@@ -35,7 +35,6 @@
         <xtce:Parameter name="CMD_ERR_COUNT" parameterTypeRef="CMD_ERR_COUNT_Type"/>
         <xtce:Parameter name="CMD_COUNT" parameterTypeRef="CMD_COUNT_Type"/>
         <xtce:Parameter name="DEVICE_ERR_COUNT" parameterTypeRef="DEVICE_ERR_COUNT_Type"/>
-        <xtce:Parameter name="DEVICE_COUNT" parameterTypeRef="DEVICE_COUNT_Type"/>
         <xtce:Parameter name="FORWARD_ERR_COUNT" parameterTypeRef="FORWARD_ERR_COUNT_Type"/>
         <xtce:Parameter name="FORWARD_COUNT" parameterTypeRef="FORWARD_COUNT_Type"/>
         <xtce:Parameter name="DEVICE_COUNTER" parameterTypeRef="DEVICE_COUNTER_Type"/>
@@ -48,7 +47,6 @@
             <xtce:ParameterRefEntry parameterRef="CMD_ERR_COUNT"/>
             <xtce:ParameterRefEntry parameterRef="CMD_COUNT"/>
             <xtce:ParameterRefEntry parameterRef="DEVICE_ERR_COUNT"/>
-            <xtce:ParameterRefEntry parameterRef="DEVICE_COUNT"/>
             <xtce:ParameterRefEntry parameterRef="FORWARD_ERR_COUNT"/>
             <xtce:ParameterRefEntry parameterRef="FORWARD_COUNT"/>
             <xtce:ParameterRefEntry parameterRef="DEVICE_COUNTER"/>
