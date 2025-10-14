@@ -51,7 +51,7 @@ namespace Components {
       //! Destroy Generic_radio object
       ~Generic_radio();
 
-    PRIVATE:
+    private:
 
       // ----------------------------------------------------------------------
       // Handler implementations for commands

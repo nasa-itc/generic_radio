@@ -6,7 +6,8 @@
 
 #include "radio_src/Generic_radio.hpp"
 #include <Fw/Logger/Logger.hpp>
-#include "FpConfig.hpp"
+// #include "FpConfig.hpp"
+#include "Fw/FPrimeBasicTypes.hpp"
 #include <Fw/Log/LogString.hpp>
 
 
