@@ -8,10 +8,10 @@
 ####
 #ITC Changes
 
-include_directories("../platform_inc")
-include_directories("../../shared")
-include_directories("../../standalone") #device_cfg.h
-include_directories("../../../../../fsw/apps/hwlib/fsw/public_inc")
+# include_directories("../platform_inc")
+# include_directories("../../shared")
+# include_directories("../../standalone") #device_cfg.h
+# include_directories("../../../../../fsw/apps/hwlib/fsw/public_inc")
 
 
 
@@ -40,3 +40,11 @@ register_fprime_module()
 target_sources(${FPRIME_CURRENT_MODULE} PRIVATE 
   "${CMAKE_CURRENT_LIST_DIR}/../../shared/generic_radio_device.c" 
 )
+
+target_include_directories(${FPRIME_CURRENT_MODULE} PUBLIC
+  "../platform_inc"
+  "../../shared"
+  "../../standalone"
+  "../../../../../fsw/apps/hwlib/fsw/public_inc"
+)
+
