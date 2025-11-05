@@ -41,7 +41,7 @@ target_sources(${FPRIME_CURRENT_MODULE} PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/../../shared/generic_radio_device.c" 
 )
 
-target_include_directories(${FPRIME_CURRENT_MODULE} PUBLIC
+target_include_directories(${FPRIME_CURRENT_MODULE} PRIVATE
   "../platform_inc"
   "../../shared"
   "../../standalone"
