@@ -20,9 +20,9 @@ namespace Nos3
         /* Get on a protocol bus */
         /* Note: Initialized defaults in case value not found in config file */
         _fsw_ci.ip = "0.0.0.0";
-        _fsw_ci.port = 5010;
+        _fsw_ci.port = TX_FSW_PORT;
         _fsw_to.ip = "0.0.0.0";
-        _fsw_to.port = 5011;
+        _fsw_to.port = RX_FSW_PORT;
         _fsw_radio.ip = "0.0.0.0";
         _fsw_radio.port = 5015;
         _radio_cmd.ip = "0.0.0.0";
@@ -298,7 +298,7 @@ namespace Nos3
         saddr.sin_port = htons(sock->port);
 
         /* Bind */
-        if (sock->port != 5010)
+        if (sock->port != TX_FSW_PORT)
         {
             status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
             if (status != 0)
