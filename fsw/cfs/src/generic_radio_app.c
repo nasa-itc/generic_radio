@@ -524,7 +524,7 @@ void GENERIC_RADIO_ProxyTask(void)
         if (status != SOCKET_TRY_AGAIN)
         {
 #ifdef GENERIC_RADIO_CFG_DEBUG
-            OS_printf("GENERIC_RADIO_ProxyTask reported status %d and received[%d]: ", status, bytes);
+            OS_printf("GENERIC_RADIO_ProxyTask reported status %d and received[%lu]: ", status, bytes);
             for (int i = 0; i < (int)bytes; i++)
             {
                 OS_printf("0x%02x ", read_data[i]);

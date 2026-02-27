@@ -39,7 +39,7 @@ int32_t GENERIC_RADIO_SetConfiguration(socket_info_t *device, uint32_t config)
     if (bytes_sent != GENERIC_RADIO_DEVICE_CMD_SIZE)
     {
 #ifdef GENERIC_RADIO_CFG_DEBUG
-        OS_printf("GENERIC_RADIO_SetConfiguration sent %d, but attempted %d \n", bytes_sent,
+        OS_printf("GENERIC_RADIO_SetConfiguration sent %lu, but attempted %d \n", bytes_sent,
                   GENERIC_RADIO_DEVICE_CMD_SIZE);
 #endif
         status = OS_ERROR;
@@ -72,7 +72,7 @@ int32_t GENERIC_RADIO_ProximityForward(socket_info_t *device, uint16_t scid, uin
     if (bytes_sent != data_len)
     {
 #ifdef GENERIC_RADIO_CFG_DEBUG
-        OS_printf("GENERIC_RADIO_ProximityForward sent %d, but attempted %d \n", bytes_sent, data_len + 2);
+        OS_printf("GENERIC_RADIO_ProximityForward sent %lu, but attempted %d \n", bytes_sent, data_len + 2);
 #endif
         status = OS_ERROR;
     }
@@ -110,7 +110,7 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t *device, GENERIC_RADIO_Device_HK_t
 // OS_printf("GENERIC_RADIO_RequestHK sent %lu, but attempted %d \n", bytes,
 // GENERIC_RADIO_DEVICE_CMD_SIZE);
 #ifdef GENERIC_RADIO_CFG_DEBUG
-        OS_printf("GENERIC_RADIO_RequestHK sent %d, but attempted %d \n", bytes, GENERIC_RADIO_DEVICE_CMD_SIZE);
+        OS_printf("GENERIC_RADIO_RequestHK sent %lu, but attempted %d \n", bytes, GENERIC_RADIO_DEVICE_CMD_SIZE);
 #endif
         status = OS_ERROR;
     }
@@ -144,7 +144,7 @@ int32_t GENERIC_RADIO_RequestHK(socket_info_t *device, GENERIC_RADIO_Device_HK_t
         // }
         OS_printf("\n");
 #ifdef GENERIC_RADIO_CFG_DEBUG
-        OS_printf("GENERIC_RADIO_RequestHK received %d, but expected %d \n", bytes, GENERIC_RADIO_DEVICE_HK_SIZE);
+        OS_printf("GENERIC_RADIO_RequestHK received %lu, but expected %lu \n", bytes, GENERIC_RADIO_DEVICE_HK_SIZE);
 #endif
         status = OS_ERROR;
     }
