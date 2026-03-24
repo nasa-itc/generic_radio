@@ -90,10 +90,21 @@ namespace Nos3
 
                 if (v.second.get("name", "").compare("prox") == 0)
                 {
+                    // /* Configuration found */
+                    // _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
+                    // _prox_fsw.port = v.second.get("fsw-port", _prox_fsw.port);
+                    // _prox_fwd.port = v.second.get("fwd-port", _prox_fwd.port);
+                    // _prox_dest.ip = v.second.get("ip", _prox_dest.ip);
+                    // _prox_dest.port = v.second.get("dest-port", _prox_dest.port);
                     /* Configuration found */
+                    _prox_rcv.ip = v.second.get("ip", _prox_rcv.ip);
                     _prox_rcv.port = v.second.get("rcv-port", _prox_rcv.port);
+                    
                     _prox_fsw.port = v.second.get("fsw-port", _prox_fsw.port);
+                    
+                    _prox_fwd.ip = v.second.get("ip", _prox_fwd.ip);     
                     _prox_fwd.port = v.second.get("fwd-port", _prox_fwd.port);
+                    
                     _prox_dest.ip = v.second.get("ip", _prox_dest.ip);
                     _prox_dest.port = v.second.get("dest-port", _prox_dest.port);
                 }
@@ -265,6 +276,60 @@ namespace Nos3
     }
 
 
+    // int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
+    // {
+    //     int status;
+    //     int optval;
+    //     socklen_t optlen;
+
+    //     /* Create */
+    //     sock->sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    //     if(sock->sockfd == -1)
+    //     {
+    //         sim_logger->info("udp_init:  Socket create error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+    //     }
+
+    //     /* Determine IP */
+    //     struct sockaddr_in saddr;
+    //     saddr.sin_family = AF_INET;
+    //     if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
+    //     {
+    //         saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+    //     }
+    //     else
+    //     {
+    //         char ip[16];
+    //         int check = host_to_ip(sock->ip.c_str(), ip);
+    //         sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d \n", sock->ip.c_str(), ip, sock->port);
+    //         if(check == 0)
+    //         {
+    //             saddr.sin_addr.s_addr = inet_addr(ip);
+    //         }
+    //     }
+    //     saddr.sin_port = htons(sock->port);
+
+    //     /* Bind */
+    //     if (sock->port != TX_FSW_PORT)
+    //     {
+    //         status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+    //         if (status != 0)
+    //         {
+    //             sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+    //         }
+    //         else
+    //         {
+    //             status = GENERIC_RADIO_SIM_ERROR;
+    //         }
+    //     }
+
+    //     /* Keep Alive */
+    //     optval = 1;
+    //     optlen = sizeof(optval);
+    //     setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
+
+    //     return status;
+    // }
+
     int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
     {
         int status;
@@ -281,18 +346,34 @@ namespace Nos3
         /* Determine IP */
         struct sockaddr_in saddr;
         saddr.sin_family = AF_INET;
-        if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
+        
+        // **FIX: Check for 0.0.0.0 first**
+        if(sock->ip == "0.0.0.0")
         {
+            // Bind to all interfaces
+            saddr.sin_addr.s_addr = INADDR_ANY;
+            sim_logger->info("udp_init - Binding to ALL interfaces (0.0.0.0); Port = %d", sock->port);
+        }
+        else if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
+        {
+            // Valid IP address
             saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+            sim_logger->info("udp_init - Binding to IP = %s; Port = %d", sock->ip.c_str(), sock->port);
         }
         else
         {
+            // Hostname - resolve it
             char ip[16];
             int check = host_to_ip(sock->ip.c_str(), ip);
-            sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d \n", sock->ip.c_str(), ip, sock->port);
+            sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d", sock->ip.c_str(), ip, sock->port);
             if(check == 0)
             {
                 saddr.sin_addr.s_addr = inet_addr(ip);
+            }
+            else
+            {
+                sim_logger->error("udp_init - Failed to resolve hostname: %s", sock->ip.c_str());
+                return GENERIC_RADIO_SIM_ERROR;
             }
         }
         saddr.sin_port = htons(sock->port);
@@ -303,11 +384,8 @@ namespace Nos3
             status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
             if (status != 0)
             {
-                sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-            }
-            else
-            {
-                status = GENERIC_RADIO_SIM_ERROR;
+                sim_logger->error("udp_init:  Socket bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
+                return GENERIC_RADIO_SIM_ERROR;
             }
         }
 
@@ -316,8 +394,9 @@ namespace Nos3
         optlen = sizeof(optval);
         setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
 
-        return status;
+        return 0;
     }
+    
 
     int32_t Generic_radioHardwareModel::tcp_init(udp_info_t* sock)
     {
