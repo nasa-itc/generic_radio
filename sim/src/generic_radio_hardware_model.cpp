@@ -275,64 +275,9 @@ namespace Nos3
         return 1; // IP NOT Found
     }
 
-
-    // int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
-    // {
-    //     int status;
-    //     int optval;
-    //     socklen_t optlen;
-
-    //     /* Create */
-    //     sock->sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    //     if(sock->sockfd == -1)
-    //     {
-    //         sim_logger->info("udp_init:  Socket create error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-    //     }
-
-    //     /* Determine IP */
-    //     struct sockaddr_in saddr;
-    //     saddr.sin_family = AF_INET;
-    //     if(inet_addr(sock->ip.c_str()) != INADDR_NONE)
-    //     {
-    //         saddr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
-    //     }
-    //     else
-    //     {
-    //         char ip[16];
-    //         int check = host_to_ip(sock->ip.c_str(), ip);
-    //         sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d \n", sock->ip.c_str(), ip, sock->port);
-    //         if(check == 0)
-    //         {
-    //             saddr.sin_addr.s_addr = inet_addr(ip);
-    //         }
-    //     }
-    //     saddr.sin_port = htons(sock->port);
-
-    //     /* Bind */
-    //     if (sock->port != TX_FSW_PORT)
-    //     {
-    //         status = bind(sock->sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
-    //         if (status != 0)
-    //         {
-    //             sim_logger->error(" udp_init:  Socker bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-    //         }
-    //         else
-    //         {
-    //             status = GENERIC_RADIO_SIM_ERROR;
-    //         }
-    //     }
-
-    //     /* Keep Alive */
-    //     optval = 1;
-    //     optlen = sizeof(optval);
-    //     setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
-
-    //     return status;
-    // }
-
     int32_t Generic_radioHardwareModel::udp_init(udp_info_t* sock)
     {
-        int status;
+        int status = 0;
         int optval;
         socklen_t optlen;
 
@@ -347,7 +292,6 @@ namespace Nos3
         struct sockaddr_in saddr;
         saddr.sin_family = AF_INET;
         
-        // **FIX: Check for 0.0.0.0 first**
         if(sock->ip == "0.0.0.0")
         {
             // Bind to all interfaces
@@ -362,7 +306,7 @@ namespace Nos3
         }
         else
         {
-            // Hostname - resolve it
+            // Reosolving Hostname
             char ip[16];
             int check = host_to_ip(sock->ip.c_str(), ip);
             sim_logger->info("udp_init - Initial = %s; Updated = %s; Port = %d", sock->ip.c_str(), ip, sock->port);
@@ -373,7 +317,10 @@ namespace Nos3
             else
             {
                 sim_logger->error("udp_init - Failed to resolve hostname: %s", sock->ip.c_str());
-                return GENERIC_RADIO_SIM_ERROR;
+                
+                status = GENERIC_RADIO_SIM_ERROR;
+
+                return status;
             }
         }
         saddr.sin_port = htons(sock->port);
@@ -385,7 +332,9 @@ namespace Nos3
             if (status != 0)
             {
                 sim_logger->error("udp_init:  Socket bind error with ip %s, and port %d", sock->ip.c_str(), sock->port);
-                return GENERIC_RADIO_SIM_ERROR;
+
+                status = GENERIC_RADIO_SIM_ERROR;
+                return status;
             }
         }
 
@@ -394,7 +343,7 @@ namespace Nos3
         optlen = sizeof(optval);
         setsockopt(sock->sockfd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);    
 
-        return 0;
+        return status;
     }
     
 
