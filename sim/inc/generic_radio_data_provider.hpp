@@ -22,7 +22,8 @@ namespace Nos3
         ~Generic_radioDataProvider(void) {};
         Generic_radioDataProvider& operator=(const Generic_radioDataProvider&) {return *this;};
 
-        mutable double _request_count;
+        mutable int16_t _commuplink;
+        mutable int16_t _commdownlink;
     };
 }
 

@@ -23,7 +23,8 @@ namespace Nos3
         ~Generic_radio42DataProvider(void) {};
         Generic_radio42DataProvider& operator=(const Generic_radio42DataProvider&) {return *this;};
 
-        int16_t _sc;  /* Which spacecraft number to parse out of 42 data */
+        int16_t _commuplink;    /* Which comm link number to parse out of 42 data */
+        int16_t _commdownlink;  /* Which comm link number to parse out of 42 data */
     };
 }
 

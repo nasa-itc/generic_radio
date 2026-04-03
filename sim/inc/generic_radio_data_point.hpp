@@ -11,16 +11,12 @@ namespace Nos3
     {
     public:
         /* Constructors */
-        Generic_radioDataPoint(double count);
-        Generic_radioDataPoint(int16_t spacecraft, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(int16_t uplink, int16_t downlink, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(bool uplink_occulted, double uplink_delay, bool downlink_occulted, double downlink_delay);
 
         /* Accessors */
         /* Provide the hardware model a way to get the specific data out of the data point */
         std::string to_string(void) const;
-        double      get_generic_radio_data_x(void) const {return _generic_radio_data[0];}
-        double      get_generic_radio_data_y(void) const {return _generic_radio_data[1];}
-        double      get_generic_radio_data_z(void) const {return _generic_radio_data[2];}
-        bool        is_generic_radio_data_valid(void) const {return _generic_radio_data_is_valid;}
     
     private:
         /* Disallow these */
@@ -28,10 +24,22 @@ namespace Nos3
         Generic_radioDataPoint(const Generic_radioDataPoint&) {};
         ~Generic_radioDataPoint(void) {};
 
+        /// @name Private mutators
+        //@{
+        inline void parse_data_point(void) const {if (_not_parsed) do_parsing();}
+        void do_parsing(void) const;
+        //@}
+
         /* Specific data you need to get from the data provider to the hardware model */
         /* You only get to this data through the accessors above */
-        mutable bool   _generic_radio_data_is_valid;
-        mutable double _generic_radio_data[3];
+        mutable Sim42DataPoint _dp;
+        int16_t        _uplink;
+        int16_t        _downlink;
+        mutable bool   _not_parsed;
+        mutable bool   _uplink_occulted;
+        mutable double _uplink_delay;
+        mutable bool   _downlink_occulted;
+        mutable double _downlink_delay;
     };
 }
 
