@@ -17,6 +17,10 @@ namespace Nos3
         /* Accessors */
         /* Provide the hardware model a way to get the specific data out of the data point */
         std::string to_string(void) const;
+        bool        get_uplink_occulted(void) const {parse_data_point(); return _uplink_occulted;}
+        bool        get_uplink_delay(void) const {parse_data_point(); return _uplink_delay;}
+        bool        get_downlink_occulted(void) const {parse_data_point(); return _downlink_occulted;}
+        bool        get_downlink_delay(void) const {parse_data_point(); return _downlink_delay;}
     
     private:
         /* Disallow these */
