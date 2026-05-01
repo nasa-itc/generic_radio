@@ -32,6 +32,11 @@ namespace Nos3
         _gsw_tlm.ip = "0.0.0.0";
         _gsw_tlm.port = 6011;
 
+        _gsw2_cmd.ip = "0.0.0.0";
+        _gsw2_cmd.port = 8013;
+        _gsw2_tlm.ip = "0.0.0.0";
+        _gsw2_tlm.port = 8011;
+
         _prox_rcv.ip = "0.0.0.0";
         _prox_rcv.port = 7012;
         _prox_fsw.ip = "0.0.0.0";
@@ -42,6 +47,7 @@ namespace Nos3
         _prox_dest.port = 7013;
 
         int tcp_true = TCP_GROUND; //if 1, use tcp with cryptolib, if 0 use udp.
+        int multi_gds = 1;
 
         sleep(5);
 
@@ -88,6 +94,15 @@ namespace Nos3
                     _gsw_tlm.port = v.second.get("tlm-port", _gsw_tlm.port);
                 }
 
+                if (v.second.get("name", "").compare("gsw2") == 0)
+                {
+                    /* Configuration found */
+                    _gsw2_cmd.port = v.second.get("cmd-port", _gsw2_cmd.port);
+                    
+                    _gsw2_tlm.ip = v.second.get("ip", _gsw2_tlm.ip);
+                    _gsw2_tlm.port = v.second.get("tlm-port", _gsw2_tlm.port);
+                }
+
                 if (v.second.get("name", "").compare("prox") == 0)
                 {
                     /* Configuration found */
@@ -126,6 +141,17 @@ namespace Nos3
             //TCP with Cryptolib
             new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_gsw_cmd, &_fsw_ci, 1); //fsw_ci needs to be udp, tcp to udp, rcv_sock is gsw_cmd (8010 5010)
             new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_fsw_to, &_gsw_tlm, 0); //forwarding udp data to tcp, fsw_to needs to be udp, rcv_sock is fsw_to (8011 5011)
+        }
+        if (multi_gds == 1)
+        {
+            // UDP with cryptolib
+
+            // One thread to read FSW telemetry ONCE and forward to BOTH GSWs
+            new std::thread(&Generic_radioHardwareModel::forward_loop_multi, this, &_fsw_to, &_gsw_tlm, &_gsw2_tlm);
+            
+            // Two separate threads to listen for incoming commands from each GSW and forward to FSW
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
+            // new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw2_cmd, &_fsw_ci); //gsw2 not needed 8010 already listening at 0.0.0.0
         }
         else
         {
@@ -616,6 +642,71 @@ namespace Nos3
             close(fwd_sock->sockfd);
         }
         
+    }
+
+void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2)
+    {
+        int status;
+        uint8_t sock_buffer[8192];
+        size_t bytes_recvd;
+
+        struct sockaddr_in rcv_addr;
+        struct sockaddr_in fwd_addr1, fwd_addr2;
+        int sockaddr_size = sizeof(struct sockaddr_in);
+
+        auto setup_fwd_addr = [&](udp_info_t* sock, struct sockaddr_in& addr) {
+            addr.sin_family = AF_INET;
+            memset(&addr, 0, sizeof(addr));
+            if(inet_addr(sock->ip.c_str()) != INADDR_NONE) {
+                addr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+            } else {
+                char ip[16];
+                if(host_to_ip(sock->ip.c_str(), ip) == 0) {
+                    addr.sin_addr.s_addr = inet_addr(ip);
+                }
+            }
+            addr.sin_port = htons(sock->port);
+        };
+
+        setup_fwd_addr(fwd_sock1, fwd_addr1);
+        setup_fwd_addr(fwd_sock2, fwd_addr2);
+
+        udp_init(rcv_sock);
+
+        sim_logger->info("Generic_radioHardwareModel::forward_loop_multi: %s:%d to %s:%d AND %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock1->ip.c_str(), fwd_sock1->port, fwd_sock2->ip.c_str(), fwd_sock2->port);
+        // debugging where gsw2 is sending data
+        sim_logger->info("forward_loop_multi: GSW2 resolved to IP %s on Port %d", 
+                         inet_ntoa(fwd_addr2.sin_addr), 
+                         ntohs(fwd_addr2.sin_port));
+        sim_logger->info("forward_loop_multi: GSW1 resolved to IP %s on Port %d", 
+                         inet_ntoa(fwd_addr1.sin_addr), 
+                         ntohs(fwd_addr1.sin_port));
+        while(_keep_running)
+        {
+            bytes_recvd = 0;
+
+            /* Receive from FSW */
+            status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
+            if (status != -1)
+            {
+                bytes_recvd = status;
+                //debuging multi loop
+                // sim_logger->info("forward_loop_multi: Received %ld bytes from FSW on port %d", bytes_recvd, rcv_sock->port);
+
+                //Forwared to gsw1
+                status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr1, sizeof(fwd_addr1));
+                if ((status == -1) || (status != (int)bytes_recvd)) {
+                    sim_logger->error("forward_loop_multi: Failed to send to GSW1");
+                }
+
+                // forward to gsw2
+                status = sendto(rcv_sock->sockfd, sock_buffer, bytes_recvd, 0, (sockaddr*) &fwd_addr2, sizeof(fwd_addr2));
+                if ((status == -1) || (status != (int)bytes_recvd)) {
+                    sim_logger->error("forward_loop_multi: Failed to send to GSW2");
+                }
+            }
+        }
+        close(rcv_sock->sockfd);
     }
 
 

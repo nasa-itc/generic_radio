@@ -31,7 +31,8 @@ add_library(generic_radio_sim SHARED ${generic_radio_sim_src} ${generic_radio_si
 
 
 # Set gsw_flag to 1 if TCP connection to CryptoLib, else 0
-set(gsw_flag 1)
+# set(gsw_flag 1)
+set(gsw_flag 0)
 
 # Add the preprocessor macro
 target_compile_definitions(generic_radio_sim PUBLIC TCP_GROUND=${gsw_flag})
