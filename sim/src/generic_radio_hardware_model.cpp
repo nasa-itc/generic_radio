@@ -46,8 +46,11 @@ namespace Nos3
         _prox_dest.ip = "0.0.0.0";
         _prox_dest.port = 7013;
 
-        int tcp_true = TCP_GROUND; //if 1, use tcp with cryptolib, if 0 use udp.
-        int multi_gds = 1;
+        // int tcp_true = TCP_GROUND; //if 1, use tcp with cryptolib, if 0 use udp.
+        int tcp_true = atoi(getenv("TCP_GROUND"));
+        // int multi_gds = 1;
+        int multi_gds = atoi(getenv("MULTI_GDS"));
+
 
         sleep(5);
 
@@ -142,7 +145,7 @@ namespace Nos3
             new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_gsw_cmd, &_fsw_ci, 1); //fsw_ci needs to be udp, tcp to udp, rcv_sock is gsw_cmd (8010 5010)
             new std::thread(&Generic_radioHardwareModel::tcp_forward_loop, this, &_fsw_to, &_gsw_tlm, 0); //forwarding udp data to tcp, fsw_to needs to be udp, rcv_sock is fsw_to (8011 5011)
         }
-        if (multi_gds == 1)
+        else if (multi_gds == 1)
         {
             // UDP with cryptolib
 
