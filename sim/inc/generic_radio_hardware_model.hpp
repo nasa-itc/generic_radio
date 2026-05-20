@@ -64,6 +64,7 @@ namespace Nos3
         int32_t tcp_init(udp_info_t* sock);
         void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
         void tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
+        void setup_fwd_addr(udp_info_t* sock, struct sockaddr_in& addr);
         void forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2);
 
         udp_info_t                                          _fsw_ci;

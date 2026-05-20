@@ -647,6 +647,21 @@ namespace Nos3
         
     }
 
+void Generic_radioHardwareModel::setup_fwd_addr(udp_info_t* sock, struct sockaddr_in& addr)
+    {
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        if(inet_addr(sock->ip.c_str()) != INADDR_NONE) {
+            addr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
+        } else {
+            char ip[16];
+            if(host_to_ip(sock->ip.c_str(), ip) == 0) {
+                addr.sin_addr.s_addr = inet_addr(ip);
+            }
+        }
+        addr.sin_port = htons(sock->port);
+    }    
+
 void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2)
     {
         int status;
@@ -656,20 +671,6 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
         struct sockaddr_in rcv_addr;
         struct sockaddr_in fwd_addr1, fwd_addr2;
         int sockaddr_size = sizeof(struct sockaddr_in);
-
-        auto setup_fwd_addr = [&](udp_info_t* sock, struct sockaddr_in& addr) {
-            addr.sin_family = AF_INET;
-            memset(&addr, 0, sizeof(addr));
-            if(inet_addr(sock->ip.c_str()) != INADDR_NONE) {
-                addr.sin_addr.s_addr = inet_addr(sock->ip.c_str());
-            } else {
-                char ip[16];
-                if(host_to_ip(sock->ip.c_str(), ip) == 0) {
-                    addr.sin_addr.s_addr = inet_addr(ip);
-                }
-            }
-            addr.sin_port = htons(sock->port);
-        };
 
         setup_fwd_addr(fwd_sock1, fwd_addr1);
         setup_fwd_addr(fwd_sock2, fwd_addr2);
