@@ -64,6 +64,8 @@ namespace Nos3
         int32_t tcp_init(udp_info_t* sock);
         void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
         void tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
+        void setup_fwd_addr(udp_info_t* sock, struct sockaddr_in& addr);
+        void forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2);
 
         udp_info_t                                          _fsw_ci;
         udp_info_t                                          _fsw_to;
@@ -75,6 +77,9 @@ namespace Nos3
         udp_info_t                                          _prox_fsw;
         udp_info_t                                          _prox_fwd;
         udp_info_t                                          _prox_dest;
+
+        udp_info_t _gsw2_cmd;
+        udp_info_t _gsw2_tlm;
 
         std::unique_ptr<NosEngine::Client::Bus>             _time_bus; /* Standard */
         SimIDataProvider*                                   _generic_radio_dp; /* Only needed if the sim has a data provider */
