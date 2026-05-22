@@ -11,20 +11,26 @@ namespace Nos3
     {
     public:
         /* Constructors */
-        Generic_radioDataPoint(int16_t uplink, int16_t downlink, const boost::shared_ptr<Sim42DataPoint> dp);
-        Generic_radioDataPoint(bool uplink_occulted, double uplink_delay, bool downlink_occulted, double downlink_delay);
+        Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit,
+            int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(void);
 
         /* Accessors */
         /* Provide the hardware model a way to get the specific data out of the data point */
         std::string to_string(void) const;
         bool        get_uplink_occulted(void) const {parse_data_point(); return _uplink_occulted;}
         bool        get_uplink_delay(void) const {parse_data_point(); return _uplink_delay;}
+        double      get_uplink_cnr(void) const {parse_data_point(); return _uplink_cnr;}
         bool        get_downlink_occulted(void) const {parse_data_point(); return _downlink_occulted;}
         bool        get_downlink_delay(void) const {parse_data_point(); return _downlink_delay;}
+        double      get_downlink_cnr(void) const {parse_data_point(); return _downlink_cnr;}
     
+        std::string get_uplink_close_criteria(void) {return _uplink_close_criteria;}
+        double      get_uplink_cnr_limit(void) {return _uplink_cnr_limit;}
+        std::string get_downlink_close_criteria(void) {return _downlink_close_criteria;}
+        double      get_downlink_cnr_limit(void) {return _downlink_cnr_limit;}
     private:
         /* Disallow these */
-        Generic_radioDataPoint(void) {};
         Generic_radioDataPoint(const Generic_radioDataPoint&) {};
         ~Generic_radioDataPoint(void) {};
 
@@ -38,12 +44,18 @@ namespace Nos3
         /* You only get to this data through the accessors above */
         mutable Sim42DataPoint _dp;
         int16_t        _uplink;
+        std::string    _uplink_close_criteria;
+        double         _uplink_cnr_limit;
         int16_t        _downlink;
+        std::string    _downlink_close_criteria;
+        double         _downlink_cnr_limit;
         mutable bool   _not_parsed;
         mutable bool   _uplink_occulted;
         mutable double _uplink_delay;
+        mutable double _uplink_cnr;
         mutable bool   _downlink_occulted;
         mutable double _downlink_delay;
+        mutable double _downlink_cnr;
     };
 }
 

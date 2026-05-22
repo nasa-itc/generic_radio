@@ -153,18 +153,18 @@ namespace Nos3
             new std::thread(&Generic_radioHardwareModel::forward_loop_multi, this, &_fsw_to, &_gsw_tlm, &_gsw2_tlm);
             
             // Two separate threads to listen for incoming commands from each GSW and forward to FSW
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1);
             // new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw2_cmd, &_fsw_ci); //gsw2 not needed 8010 already listening at 0.0.0.0
         }
         else
         {
             //UDP with cryptolib
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci);
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm, 0);
         }
 
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw);
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw, -1);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest, -1);
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
@@ -434,8 +434,13 @@ namespace Nos3
     }
 
 
-    void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock)
+    void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction)
     {
+        /*
+        if direction = 0, this means going from fsw to radio to cryptolib
+        if direction = 1, this means going from cryptolib to radio to fsw
+        if direction = -1, this means crosslink between satellites
+        */
         int status;
         uint8_t sock_buffer[8192];
         size_t bytes_recvd;
@@ -443,6 +448,8 @@ namespace Nos3
         struct sockaddr_in rcv_addr;
         struct sockaddr_in fwd_addr;
         int sockaddr_size = sizeof(struct sockaddr_in);
+
+        bool communication_capable;
 
         fwd_addr.sin_family = AF_INET;
         if(inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
@@ -471,7 +478,41 @@ namespace Nos3
 
             /* Receive */
             status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
-            if (status != -1)
+            boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
+            if (direction == 1) {
+                if (data_point->get_uplink_close_criteria() == "occulted") {
+                    if (data_point->get_uplink_occulted()) {
+                        communication_capable = false;
+                    } else {
+                        communication_capable = true;
+                    }
+                } else if (data_point->get_uplink_close_criteria() == "cnr") {
+                    if (data_point->get_uplink_cnr_limit() <= data_point->get_uplink_cnr()) {
+                        communication_capable = true;
+                    } else {
+                        communication_capable = false;
+                    }
+                } else { // uplink_close_criteria == "none" or anything else
+                    communication_capable = true;
+                }
+            } else { // direction = 0
+                if (data_point->get_downlink_close_criteria() == "occulted") {
+                    if (data_point->get_downlink_occulted()) {
+                        communication_capable = false;
+                    } else {
+                        communication_capable = true;
+                    }
+                } else if (data_point->get_downlink_close_criteria() == "cnr") {
+                    if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
+                        communication_capable = true;
+                    } else {
+                        communication_capable = false;
+                    }
+                } else { // downlink_close_criteria == "none" or anything else
+                    communication_capable = true;
+                }
+            }
+            if (status != -1 && communication_capable)
             {
                 bytes_recvd = status;
 
@@ -491,10 +532,11 @@ namespace Nos3
 
     void Generic_radioHardwareModel::tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction)
     {
-        /*
-        if direction = 0, this means going from udp to tcp (fsw to radio to cryptolib)
-        if direction = 1, this means going from tcp to udp (cryptolib to radio to fsw)
-        */
+       /*
+       if direction = 0, this means going from udp to tcp (fsw to radio to cryptolib)
+       if direction = 1, this means going from tcp to udp (cryptolib to radio to fsw)
+       */
+       bool communication_capable;
 
        if (direction == 0)
        {
@@ -564,7 +606,23 @@ namespace Nos3
                 // Receive from UDP
                 status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0,
                                 (sockaddr*)&rcv_addr, (socklen_t*)&sockaddr_size);
-                if (status != -1)
+                boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
+                if (data_point->get_downlink_close_criteria() == "occulted") {
+                    if (data_point->get_downlink_occulted()) {
+                        communication_capable = false;
+                    } else {
+                        communication_capable = true;
+                    }
+                } else if (data_point->get_downlink_close_criteria() == "cnr") {
+                    if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
+                        communication_capable = true;
+                    } else {
+                        communication_capable = false;
+                    }
+                } else { // downlink_close_criteria == "none" or anything else
+                    communication_capable = true;
+                }
+                if (status != -1 && communication_capable)
                 {
                     bytes_recvd = status;
 
@@ -623,7 +681,23 @@ namespace Nos3
             {
                 /* Receive from TCP socket */
                 status = recv(rcv_sock->clientfd, sock_buffer, sizeof(sock_buffer), 0);
-                if (status > 0)
+                boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
+                if (data_point->get_uplink_close_criteria() == "occulted") {
+                    if (data_point->get_uplink_occulted()) {
+                        communication_capable = false;
+                    } else {
+                        communication_capable = true;
+                    }
+                } else if (data_point->get_uplink_close_criteria() == "cnr") {
+                    if (data_point->get_uplink_cnr_limit() <= data_point->get_uplink_cnr()) {
+                        communication_capable = true;
+                    } else {
+                        communication_capable = false;
+                    }
+                } else { // uplink_close_criteria == "none" or anything else
+                    communication_capable = true;
+                }
+                if (status > 0 && communication_capable)
                 {
                     bytes_recvd = status;
 
@@ -672,6 +746,8 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
         struct sockaddr_in fwd_addr1, fwd_addr2;
         int sockaddr_size = sizeof(struct sockaddr_in);
 
+        bool communication_capable;
+
         setup_fwd_addr(fwd_sock1, fwd_addr1);
         setup_fwd_addr(fwd_sock2, fwd_addr2);
 
@@ -691,7 +767,23 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
 
             /* Receive from FSW */
             status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
-            if (status != -1)
+            boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
+            if (data_point->get_downlink_close_criteria() == "occulted") {
+                if (data_point->get_downlink_occulted()) {
+                    communication_capable = false;
+                } else {
+                    communication_capable = true;
+                }
+            } else if (data_point->get_downlink_close_criteria() == "cnr") {
+                if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
+                    communication_capable = true;
+                } else {
+                    communication_capable = false;
+                }
+            } else { // downlink_close_criteria == "none" or anything else
+                communication_capable = true;
+            }
+            if (status != -1 && communication_capable)
             {
                 bytes_recvd = status;
                 //debuging multi loop

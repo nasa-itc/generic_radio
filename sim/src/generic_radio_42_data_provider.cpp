@@ -14,8 +14,12 @@ namespace Nos3
             config.get("simulator.hardware-model.data-provider.hostname", "localhost"),
             config.get("simulator.hardware-model.data-provider.port", 4242) );
 
-        _commuplink = config.get("simulator.hardware-model.data-provider.comm-uplink", 0);
-        _commdownlink = config.get("simulator.hardware-model.data-provider.comm-downlink", 1);
+        _comm_uplink = config.get("simulator.hardware-model.data-provider.comm-uplink", 0);
+        _uplink_close_criteria = config.get("simulator.hardware-model.data-provider.uplink-close-criteria", "none");
+        _uplink_cnr_limit = config.get("simulator.hardware-model.data-provider.uplink-cnr-limit", 15);
+        _comm_downlink = config.get("simulator.hardware-model.data-provider.comm-downlink", 1);
+        _downlink_close_criteria = config.get("simulator.hardware-model.data-provider.downlink-close-criteria", "none");
+        _downlink_cnr_limit = config.get("simulator.hardware-model.data-provider.downlink-cnr-limit", 15);
     }
 
     boost::shared_ptr<SimIDataPoint> Generic_radio42DataProvider::get_data_point(void) const
@@ -26,7 +30,7 @@ namespace Nos3
         const boost::shared_ptr<Sim42DataPoint> dp42 = boost::dynamic_pointer_cast<Sim42DataPoint>(SimData42SocketProvider::get_data_point());
 
         /* Prepare the specific data */
-        SimIDataPoint *dp = new Generic_radioDataPoint(_commuplink, _commdownlink, dp42);
+        SimIDataPoint *dp = new Generic_radioDataPoint(_comm_uplink, _uplink_close_criteria, _uplink_cnr_limit, _comm_downlink, _downlink_close_criteria, _downlink_cnr_limit, dp42);
 
         return boost::shared_ptr<SimIDataPoint>(dp);
     }

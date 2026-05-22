@@ -9,8 +9,6 @@ namespace Nos3
     Generic_radioDataProvider::Generic_radioDataProvider(const boost::property_tree::ptree& config) : SimIDataProvider(config)
     {
         sim_logger->trace("Generic_radioDataProvider::Generic_radioDataProvider:  Constructor executed");
-        _commuplink = 0;
-        _commdownlink = 1;
     }
 
     boost::shared_ptr<SimIDataPoint> Generic_radioDataProvider::get_data_point(void) const
@@ -18,7 +16,7 @@ namespace Nos3
         sim_logger->trace("Generic_radioDataProvider::get_data_point:  Executed");
 
         /* Prepare the specific data */
-        SimIDataPoint *dp = new Generic_radioDataPoint(false, 0.0, false, 0.0);
+        SimIDataPoint *dp = new Generic_radioDataPoint();
 
         return boost::shared_ptr<SimIDataPoint>(dp);
     }
