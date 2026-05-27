@@ -523,6 +523,16 @@ namespace Nos3
             {
                 bytes_recvd = status;
 
+                message_to_send_t message;
+                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                strncpy((char *)message.buffer, (const char *)sock_buffer, bytes_recvd);
+                message.buffer_size = bytes_recvd;
+                if (direction == 1) {
+                    _message_queue_udp_uplink.push(message);
+                } else {
+                    _message_queue_udp_downlink.push(message);
+                }
+
                 // /* Debug print */
                 // sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
 
@@ -638,6 +648,12 @@ namespace Nos3
                 {
                     bytes_recvd = status;
 
+                    message_to_send_t message;
+                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                    strncpy((char *)message.buffer, (const char *)sock_buffer, bytes_recvd);
+                    message.buffer_size = bytes_recvd;
+                    _message_queue_tcp_downlink.push(message);
+
                     // log to check status of bytes received from udp to be forwarded to tcp
                     // sim_logger->debug("Generic_radioHardwareModel::forward_loop: received %ld bytes from UDP %s:%d",
                     //                 bytes_recvd, rcv_sock->ip.c_str(), rcv_sock->port);
@@ -716,6 +732,12 @@ namespace Nos3
                 if (status > 0 && communication_capable)
                 {
                     bytes_recvd = status;
+
+                    message_to_send_t message;
+                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                    strncpy((char *)message.buffer, (const char *)sock_buffer, bytes_recvd);
+                    message.buffer_size = bytes_recvd;
+                    _message_queue_tcp_uplink.push(message);
 
                     sim_logger->debug("forward_loop: TCP %s:%d received %ld bytes",
                                     rcv_sock->ip.c_str(), rcv_sock->port, bytes_recvd);
@@ -807,6 +829,13 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
             if (status != -1 && communication_capable)
             {
                 bytes_recvd = status;
+
+                message_to_send_t message;
+                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                strncpy((char *)message.buffer, (const char *)sock_buffer, bytes_recvd);
+                message.buffer_size = bytes_recvd;
+                _message_queue_multi_downlink.push(message);
+
                 //debuging multi loop
                 // sim_logger->info("forward_loop_multi: Received %ld bytes from FSW on port %d", bytes_recvd, rcv_sock->port);
 

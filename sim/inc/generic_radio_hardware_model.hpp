@@ -5,6 +5,7 @@
 ** Includes
 */
 #include <map>
+#include <queue>
 
 #include <arpa/inet.h>	
 #include <boost/tuple/tuple.hpp>
@@ -89,6 +90,16 @@ namespace Nos3
         std::uint32_t                                       _count;
         std::uint32_t                                       _config;
         std::uint32_t                                       _prox_signal;
+        struct message_to_send_t {
+            uint8_t buffer[8192];
+            size_t buffer_size;
+            double time_to_send;
+        };
+        std::queue<message_to_send_t>                       _message_queue_udp_uplink; 
+        std::queue<message_to_send_t>                       _message_queue_udp_downlink;
+        std::queue<message_to_send_t>                       _message_queue_tcp_uplink; 
+        std::queue<message_to_send_t>                       _message_queue_tcp_downlink;
+        std::queue<message_to_send_t>                       _message_queue_multi_downlink;
     };
 }
 
