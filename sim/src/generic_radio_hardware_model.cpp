@@ -214,7 +214,7 @@ namespace Nos3
                 bytes_recvd = status;
 
                 /* Debug print */
-                sim_logger->debug("Generic_radioHardwareModel::run: %s:%d received %ld bytes", _radio_cmd.ip.c_str(), _radio_cmd.port, bytes_recvd);
+                sim_logger->trace("Generic_radioHardwareModel::run: %s:%d received %ld bytes", _radio_cmd.ip.c_str(), _radio_cmd.port, bytes_recvd);
 
                 /* Process Command */
                 process_radio_command(sock_buffer, bytes_recvd);
@@ -536,7 +536,7 @@ namespace Nos3
                 bytes_recvd = status;
 
                 message_to_send_t message;
-                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() / 1000000.0 + delay;
                 memcpy(message.buffer, sock_buffer, bytes_recvd);
                 message.buffer_size = bytes_recvd;
                 std::lock_guard<std::mutex> lock(_message_queue_udp_mutex);
@@ -558,7 +558,7 @@ namespace Nos3
         std::lock_guard<std::mutex> lock(_message_queue_udp_mutex);
         while(!_message_queue_udp_uplink.empty()) {
             message = _message_queue_udp_uplink.front();
-            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time) {
+            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
                 _message_queue_udp_uplink.pop();
                 /* Debug print */
                 sim_logger->trace("Generic_radioHardwareModel::process_forward_loop_message_queue: %s:%d received %ld bytes", 
@@ -577,7 +577,7 @@ namespace Nos3
         }
         while(!_message_queue_udp_downlink.empty()) {
             message = _message_queue_udp_downlink.front();
-            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time) {
+            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
                 _message_queue_udp_downlink.pop();
                 /* Debug print */
                 sim_logger->trace("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", 
@@ -701,7 +701,7 @@ namespace Nos3
                     bytes_recvd = status;
 
                     message_to_send_t message;
-                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() / 1000000.0 + delay;
                     memcpy(message.buffer, sock_buffer, bytes_recvd);
                     message.buffer_size = bytes_recvd;
                     std::lock_guard<std::mutex> lock(_message_queue_tcp_downlink_mutex);
@@ -779,7 +779,7 @@ namespace Nos3
                     bytes_recvd = status;
 
                     message_to_send_t message;
-                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                    message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() / 1000000.0 + delay;
                     memcpy(message.buffer, sock_buffer, bytes_recvd);
                     message.buffer_size = bytes_recvd;
                     std::lock_guard<std::mutex> lock(_message_queue_tcp_uplink_mutex);
@@ -802,10 +802,10 @@ namespace Nos3
             std::lock_guard<std::mutex> lock(_message_queue_tcp_downlink_mutex);
             while(!_message_queue_tcp_downlink.empty()) {
                 message = _message_queue_tcp_downlink.front();
-                if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time) {
+                if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
                     _message_queue_tcp_downlink.pop();
                     // log to check status of bytes received from udp to be forwarded to tcp
-                    sim_logger->debug("Generic_radioHardwareModel::process_tcp_forward_loop_message_queue: received %ld bytes from UDP %s:%d",
+                    sim_logger->trace("Generic_radioHardwareModel::process_tcp_forward_loop_message_queue: received %ld bytes from UDP %s:%d",
                         message.buffer_size, _rcv_sock_tcp_downlink->ip.c_str(), _rcv_sock_tcp_downlink->port);
 
                     // Forward to TCP
@@ -826,9 +826,9 @@ namespace Nos3
             std::lock_guard<std::mutex> lock(_message_queue_tcp_uplink_mutex);
             while(!_message_queue_tcp_uplink.empty()) {
                 message = _message_queue_tcp_uplink.front();
-                if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time) {
+                if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
                     _message_queue_tcp_uplink.pop();
-                    sim_logger->debug("forward_loop: TCP %s:%d received %ld bytes",
+                    sim_logger->debug("Generic_radioHardwareModel::process_tcp_forward_loop_message_queue: TCP %s:%d received %ld bytes",
                         _rcv_sock_tcp_uplink->ip.c_str(), _rcv_sock_tcp_uplink->port, message.buffer_size);
 
                     /* Forward to UDP socket */
@@ -836,7 +836,7 @@ namespace Nos3
                                     (sockaddr*)&_fwd_addr_tcp_uplink, sizeof(_fwd_addr_tcp_uplink));
                     if ((status == -1) || (status != (int)message.buffer_size))
                     {
-                        sim_logger->error("process_tcp_forward_loop_message_queue: UDP forward only sent %d/%ld bytes",
+                        sim_logger->error("Generic_radioHardwareModel::process_tcp_forward_loop_message_queue: UDP forward only sent %d/%ld bytes",
                                         status, message.buffer_size);
                     }
                 } else {
@@ -923,7 +923,7 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
                 bytes_recvd = status;
 
                 message_to_send_t message;
-                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() + delay;
+                message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() / 1000000.0 + delay;
                 memcpy(message.buffer, sock_buffer, bytes_recvd);
                 message.buffer_size = bytes_recvd;
                 std::lock_guard<std::mutex> lock(_message_queue_multi_downlink_mutex);
@@ -941,7 +941,7 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
         std::lock_guard<std::mutex> lock(_message_queue_multi_downlink_mutex);
         while(!_message_queue_multi_downlink.empty()) {
             message = _message_queue_multi_downlink.front();
-            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time) {
+            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
                 _message_queue_multi_downlink.pop();
                 //debuging multi loop
                 sim_logger->trace("process_forward_loop_multi_message_queue: Received %ld bytes from FSW on port %d", message.buffer_size, _rcv_sock_multi_downlink->port);
@@ -1024,7 +1024,7 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
 
         /* Retrieve data and log in man readable format */
         std::vector<uint8_t> in_data(buf, buf + len);
-        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  REQUEST %s",
+        sim_logger->trace("Generic_radioHardwareModel::process_radio_command:  REQUEST %s",
             SimIHardwareModel::uint8_vector_to_hex_string(in_data).c_str());
 
         /* Check simulator is enabled */
@@ -1067,7 +1067,7 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
                 {
                     case 0:
                         /* Request HK */
-                        sim_logger->debug("Generic_radioHardwareModel::process_radio_command:  Send HK command received!");
+                        sim_logger->trace("Generic_radioHardwareModel::process_radio_command:  Send HK command received!");
                         _count++;
                         create_generic_radio_hk(out_data);
                         status = sendto(_radio_cmd.sockfd, out_data, 16, 0, (sockaddr*) &fwd_addr, sizeof(fwd_addr));
