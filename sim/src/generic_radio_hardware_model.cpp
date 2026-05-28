@@ -494,15 +494,14 @@ namespace Nos3
             boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
             delay = 0;
             if (direction == 1) {
+                if (data_point->get_uplink_delay_on()) delay = data_point->get_uplink_delay();
                 if (data_point->get_uplink_close_criteria() == "occulted") {
-                    delay = data_point->get_uplink_delay();
                     if (data_point->get_uplink_occulted()) {
                         communication_capable = false;
                     } else {
                         communication_capable = true;
                     }
                 } else if (data_point->get_uplink_close_criteria() == "cnr") {
-                    delay = data_point->get_uplink_delay();
                     if (data_point->get_uplink_cnr_limit() <= data_point->get_uplink_cnr()) {
                         communication_capable = true;
                     } else {
@@ -512,15 +511,14 @@ namespace Nos3
                     communication_capable = true;
                 }
             } else { // direction = 0
+                if (data_point->get_downlink_delay_on()) delay = data_point->get_downlink_delay();
                 if (data_point->get_downlink_close_criteria() == "occulted") {
-                    delay = data_point->get_downlink_delay();
                     if (data_point->get_downlink_occulted()) {
                         communication_capable = false;
                     } else {
                         communication_capable = true;
                     }
                 } else if (data_point->get_downlink_close_criteria() == "cnr") {
-                    delay = data_point->get_downlink_delay();
                     if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
                         communication_capable = true;
                     } else {
@@ -678,15 +676,14 @@ namespace Nos3
                                 (sockaddr*)&rcv_addr, (socklen_t*)&sockaddr_size);
                 boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
                 delay = 0;
+                if (data_point->get_downlink_delay_on()) delay = data_point->get_downlink_delay();
                 if (data_point->get_downlink_close_criteria() == "occulted") {
-                    delay = data_point->get_downlink_delay();
                     if (data_point->get_downlink_occulted()) {
                         communication_capable = false;
                     } else {
                         communication_capable = true;
                     }
                 } else if (data_point->get_downlink_close_criteria() == "cnr") {
-                    delay = data_point->get_downlink_delay();
                     if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
                         communication_capable = true;
                     } else {
@@ -756,15 +753,14 @@ namespace Nos3
                 status = recv(rcv_sock->clientfd, sock_buffer, sizeof(sock_buffer), 0);
                 boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
                 delay = 0;
+                if (data_point->get_uplink_delay_on()) delay = data_point->get_uplink_delay();
                 if (data_point->get_uplink_close_criteria() == "occulted") {
-                    delay = data_point->get_uplink_delay();
                     if (data_point->get_uplink_occulted()) {
                         communication_capable = false;
                     } else {
                         communication_capable = true;
                     }
                 } else if (data_point->get_uplink_close_criteria() == "cnr") {
-                    delay = data_point->get_uplink_delay();
                     if (data_point->get_uplink_cnr_limit() <= data_point->get_uplink_cnr()) {
                         communication_capable = true;
                     } else {
@@ -900,15 +896,14 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
             status = recvfrom(rcv_sock->sockfd, sock_buffer, sizeof(sock_buffer), 0, (sockaddr*) &rcv_addr, (socklen_t*) &sockaddr_size);
             boost::shared_ptr<Generic_radioDataPoint> data_point = boost::dynamic_pointer_cast<Generic_radioDataPoint>(_generic_radio_dp->get_data_point());
             delay = 0;
+            if (data_point->get_downlink_delay_on()) delay = data_point->get_downlink_delay();
             if (data_point->get_downlink_close_criteria() == "occulted") {
-                delay = data_point->get_downlink_delay();
                 if (data_point->get_downlink_occulted()) {
                     communication_capable = false;
                 } else {
                     communication_capable = true;
                 }
             } else if (data_point->get_downlink_close_criteria() == "cnr") {
-                delay = data_point->get_downlink_delay();
                 if (data_point->get_downlink_cnr_limit() <= data_point->get_downlink_cnr()) {
                     communication_capable = true;
                 } else {

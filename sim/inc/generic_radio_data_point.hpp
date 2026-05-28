@@ -11,8 +11,8 @@ namespace Nos3
     {
     public:
         /* Constructors */
-        Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit,
-            int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit, bool uplink_delay_on,
+            int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, bool downlink_delay_on, const boost::shared_ptr<Sim42DataPoint> dp);
         Generic_radioDataPoint(void);
 
         /* Accessors */
@@ -27,8 +27,10 @@ namespace Nos3
     
         std::string get_uplink_close_criteria(void) {return _uplink_close_criteria;}
         double      get_uplink_cnr_limit(void) {return _uplink_cnr_limit;}
+        bool        get_uplink_delay_on(void) { return _uplink_delay_on;}
         std::string get_downlink_close_criteria(void) {return _downlink_close_criteria;}
         double      get_downlink_cnr_limit(void) {return _downlink_cnr_limit;}
+        bool        get_downlink_delay_on(void) { return _downlink_delay_on;}
     private:
         /* Disallow these */
         Generic_radioDataPoint(const Generic_radioDataPoint&) {};
@@ -46,9 +48,11 @@ namespace Nos3
         int16_t        _uplink;
         std::string    _uplink_close_criteria;
         double         _uplink_cnr_limit;
+        bool           _uplink_delay_on;
         int16_t        _downlink;
         std::string    _downlink_close_criteria;
         double         _downlink_cnr_limit;
+        bool           _downlink_delay_on;
         mutable bool   _not_parsed;
         mutable bool   _uplink_occulted;
         mutable double _uplink_delay;

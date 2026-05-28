@@ -5,10 +5,10 @@ namespace Nos3
 {
     extern ItcLogger::Logger *sim_logger;
 
-    Generic_radioDataPoint::Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit,
-        int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, const boost::shared_ptr<Sim42DataPoint> dp) : 
-        _dp(*dp), _uplink(uplink), _uplink_close_criteria(uplink_close_criteria), _uplink_cnr_limit(uplink_cnr_limit),
-        _downlink(downlink), _downlink_close_criteria(downlink_close_criteria), _downlink_cnr_limit(downlink_cnr_limit), _not_parsed(true)
+    Generic_radioDataPoint::Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit, bool uplink_delay_on,
+        int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, bool downlink_delay_on, const boost::shared_ptr<Sim42DataPoint> dp) : 
+        _dp(*dp), _uplink(uplink), _uplink_close_criteria(uplink_close_criteria), _uplink_cnr_limit(uplink_cnr_limit), _uplink_delay_on(uplink_delay_on),
+        _downlink(downlink), _downlink_close_criteria(downlink_close_criteria), _downlink_cnr_limit(downlink_cnr_limit), _downlink_delay_on(downlink_delay_on), _not_parsed(true)
     {
         sim_logger->trace("Generic_radioDataPoint::Generic_radioDataPoint:  42 Constructor executed");
 

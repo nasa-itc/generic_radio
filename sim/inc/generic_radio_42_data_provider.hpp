@@ -26,9 +26,11 @@ namespace Nos3
         mutable int16_t _comm_uplink;
         mutable std::string _uplink_close_criteria;
         mutable double _uplink_cnr_limit;
+        mutable bool _uplink_delay_on;
         mutable int16_t _comm_downlink;
         mutable std::string _downlink_close_criteria;
         mutable double _downlink_cnr_limit;
+        mutable bool _downlink_delay_on;
     };
 }
 
