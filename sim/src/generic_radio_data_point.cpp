@@ -89,10 +89,12 @@ namespace Nos3
         ss << std::setprecision(std::numeric_limits<double>::digits10); /* Full double precision */
         ss << "Generic_radio Data Point:   Uplink occulted: ";
         ss << (_uplink_occulted ? "True" : "False");
-        ss << ", Uplink delay" << _uplink_delay;
+        ss << ", Uplink delay " << _uplink_delay;
+        ss << ", Uplink CNR " << _uplink_cnr;
         ss << ", Downlink occulted: ";
         ss << (_downlink_occulted ? "True" : "False");
-        ss << ", Downlink delay" << _downlink_delay;
+        ss << ", Downlink delay " << _downlink_delay;
+        ss << ", Downlink CNR " << _downlink_cnr;
 
         return ss.str();
     }
