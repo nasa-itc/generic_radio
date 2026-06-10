@@ -54,7 +54,7 @@ namespace Nos3
         int multi_gds = multi_gds_env ? atoi(multi_gds_env) : 0;
 
 
-        sleep(5);
+        // sleep(5);
 
         if (config.get_child_optional("simulator.hardware-model.connections")) 
         {
@@ -656,13 +656,22 @@ namespace Nos3
                 sim_logger->error("tcp_forward_loop - Failed to resolve hostname: %s", fwd_sock->ip.c_str());
             }
             sim_logger->info("tcp_forward_loop - Hostname = %s, Resolved IP = %s, Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
-            sleep(10);
-
-            if (connect(fwd_sock->sockfd, (struct sockaddr*)&tcp_addr, sizeof(tcp_addr)) < 0)
+            
+            sim_logger->info("Waiting for Cyrptolib TCP server to become available");
+            int retries = 0;
+            while (connect(fwd_sock->sockfd, (struct sockaddr*)&tcp_addr, sizeof(tcp_addr)) < 0)
             {
-                sim_logger->error("Generic_radioHardwareModel::tcp_forward_loop: Failed to connect to TCP server %s:%d", fwd_sock->ip.c_str(), fwd_sock->port);
-                return;
+                if (retries >= 30) 
+                {
+                    sim_logger->error("Failed to connect to Cryptolib TCP server after 30 attempts.");
+                    sim_logger->error("Generic_radioHardwareModel::tcp_forward_loop: Failed to connect to TCP server %s:%d", fwd_sock->ip.c_str(), fwd_sock->port);
+                    return;
+                }
+                sim_logger->debug("Connection refused, retrying in 1 second...");
+                sleep(1);
+                retries++;
             }
+            sim_logger->info("Successfully connected to TCP server!");
 
             sim_logger->debug("Generic_radioHardwareModel::tcp_forward_loop: (UDP->TCP): UDP %s:%d to TCP %s:%d",
                             rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
