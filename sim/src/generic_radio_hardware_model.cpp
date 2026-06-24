@@ -631,6 +631,7 @@ namespace Nos3
             struct sockaddr_in tcp_addr;
             tcp_addr.sin_family = AF_INET;
             tcp_addr.sin_port = htons(fwd_sock->port);
+            char ip[INET_ADDRSTRLEN] = {0};
 
             if (inet_addr(fwd_sock->ip.c_str()) != INADDR_NONE)
             {
@@ -638,8 +639,23 @@ namespace Nos3
             }
             else
             {
-                char ip[16];
+
                 int check = host_to_ip(fwd_sock->ip.c_str(), ip);
+
+                int retries = 0;
+                while(check!=0)
+                {
+                    if (retries >= 30) 
+                    {
+                        sim_logger->error("Failed to resolve host Cryptolib IP after 30 attempts.");
+                        return;
+                    }
+                    check =  host_to_ip(fwd_sock->ip.c_str(), ip);
+                    sim_logger->info("Generic_radioHardwareModel::tcp_forward_loop: Failed to resolve IP for %s, retrying to resolve", fwd_sock->ip.c_str());
+                    sleep(1);
+                    retries++;
+                }
+
                 sim_logger->info("tcp_forward_loop - Initial = %s; Updated = %s; Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
                 if (check != 0)
                 {
@@ -648,15 +664,9 @@ namespace Nos3
                 }
                 tcp_addr.sin_addr.s_addr = inet_addr(ip);
             }
-
-            char ip[INET_ADDRSTRLEN] = {0};
-            int check = host_to_ip(fwd_sock->ip.c_str(), ip);
-            if (check !=0)
-            {
-                sim_logger->error("tcp_forward_loop - Failed to resolve hostname: %s", fwd_sock->ip.c_str());
-            }
-            sim_logger->info("tcp_forward_loop - Hostname = %s, Resolved IP = %s, Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
             
+            sim_logger->info("tcp_forward_loop - Hostname = %s, Resolved IP = %s, Port = %d", fwd_sock->ip.c_str(), ip, fwd_sock->port);
+
             sim_logger->info("Waiting for Cyrptolib TCP server to become available");
             int retries = 0;
             while (connect(fwd_sock->sockfd, (struct sockaddr*)&tcp_addr, sizeof(tcp_addr)) < 0)
@@ -672,6 +682,7 @@ namespace Nos3
                 retries++;
             }
             sim_logger->info("Successfully connected to TCP server!");
+ 
 
             sim_logger->debug("Generic_radioHardwareModel::tcp_forward_loop: (UDP->TCP): UDP %s:%d to TCP %s:%d",
                             rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
