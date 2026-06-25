@@ -5,6 +5,8 @@
 ** Includes
 */
 #include <map>
+#include <queue>
+#include <mutex>
 
 #include <arpa/inet.h>	
 #include <boost/tuple/tuple.hpp>
@@ -62,8 +64,13 @@ namespace Nos3
         int32_t host_to_ip(const char * hostname, char* ip);
         int32_t udp_init(udp_info_t* sock);
         int32_t tcp_init(udp_info_t* sock);
-        void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock);
+        void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
+        void process_forward_loop_message_queue(NosEngine::Common::SimTime time);
         void tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
+        void process_tcp_forward_loop_message_queue(NosEngine::Common::SimTime time);
+        void setup_fwd_addr(udp_info_t* sock, struct sockaddr_in& addr);
+        void forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2);
+        void process_forward_loop_multi_message_queue(NosEngine::Common::SimTime time);
 
         udp_info_t                                          _fsw_ci;
         udp_info_t                                          _fsw_to;
@@ -76,6 +83,9 @@ namespace Nos3
         udp_info_t                                          _prox_fwd;
         udp_info_t                                          _prox_dest;
 
+        udp_info_t _gsw2_cmd;
+        udp_info_t _gsw2_tlm;
+
         std::unique_ptr<NosEngine::Client::Bus>             _time_bus; /* Standard */
         SimIDataProvider*                                   _generic_radio_dp; /* Only needed if the sim has a data provider */
 
@@ -84,6 +94,32 @@ namespace Nos3
         std::uint32_t                                       _count;
         std::uint32_t                                       _config;
         std::uint32_t                                       _prox_signal;
+        struct message_to_send_t {
+            uint8_t buffer[8192];
+            size_t buffer_size;
+            double time_to_send;
+        };
+        std::queue<message_to_send_t>                       _message_queue_udp_uplink; 
+        std::queue<message_to_send_t>                       _message_queue_udp_downlink;
+        std::mutex                                          _message_queue_udp_mutex;
+        std::queue<message_to_send_t>                       _message_queue_tcp_uplink; 
+        std::mutex                                          _message_queue_tcp_uplink_mutex;
+        std::queue<message_to_send_t>                       _message_queue_tcp_downlink;
+        std::mutex                                          _message_queue_tcp_downlink_mutex;
+        std::queue<message_to_send_t>                       _message_queue_multi_downlink;
+        std::mutex                                          _message_queue_multi_downlink_mutex;
+        udp_info_t*                                         _rcv_sock_udp_uplink;
+        struct sockaddr_in                                  _fwd_addr_udp_uplink;
+        udp_info_t*                                         _rcv_sock_udp_downlink;
+        struct sockaddr_in                                  _fwd_addr_udp_downlink;
+        udp_info_t*                                         _rcv_sock_tcp_downlink;
+        udp_info_t*                                         _fwd_sock_tcp_downlink;
+        udp_info_t*                                         _rcv_sock_tcp_uplink;
+        udp_info_t*                                         _fwd_sock_tcp_uplink;
+        struct sockaddr_in                                  _fwd_addr_tcp_uplink;
+        udp_info_t*                                         _rcv_sock_multi_downlink;
+        struct sockaddr_in                                  _fwd_addr1_multi_downlink;
+        struct sockaddr_in                                  _fwd_addr2_multi_downlink;
     };
 }
 

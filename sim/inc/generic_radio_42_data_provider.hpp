@@ -23,7 +23,14 @@ namespace Nos3
         ~Generic_radio42DataProvider(void) {};
         Generic_radio42DataProvider& operator=(const Generic_radio42DataProvider&) {return *this;};
 
-        int16_t _sc;  /* Which spacecraft number to parse out of 42 data */
+        mutable int16_t _comm_uplink;
+        mutable std::string _uplink_close_criteria;
+        mutable double _uplink_cnr_limit;
+        mutable bool _uplink_delay_on;
+        mutable int16_t _comm_downlink;
+        mutable std::string _downlink_close_criteria;
+        mutable double _downlink_cnr_limit;
+        mutable bool _downlink_delay_on;
     };
 }
 
