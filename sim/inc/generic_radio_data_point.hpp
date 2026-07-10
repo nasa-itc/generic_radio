@@ -11,27 +11,55 @@ namespace Nos3
     {
     public:
         /* Constructors */
-        Generic_radioDataPoint(double count);
-        Generic_radioDataPoint(int16_t spacecraft, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(int16_t uplink, std::string uplink_close_criteria, double uplink_cnr_limit, bool uplink_delay_on,
+            int16_t downlink, std::string downlink_close_criteria, double downlink_cnr_limit, bool downlink_delay_on, const boost::shared_ptr<Sim42DataPoint> dp);
+        Generic_radioDataPoint(void);
 
         /* Accessors */
         /* Provide the hardware model a way to get the specific data out of the data point */
         std::string to_string(void) const;
-        double      get_generic_radio_data_x(void) const {return _generic_radio_data[0];}
-        double      get_generic_radio_data_y(void) const {return _generic_radio_data[1];}
-        double      get_generic_radio_data_z(void) const {return _generic_radio_data[2];}
-        bool        is_generic_radio_data_valid(void) const {return _generic_radio_data_is_valid;}
+        bool        get_uplink_occulted(void) const {parse_data_point(); return _uplink_occulted;}
+        double      get_uplink_delay(void) const {parse_data_point(); return _uplink_delay;}
+        double      get_uplink_cnr(void) const {parse_data_point(); return _uplink_cnr;}
+        bool        get_downlink_occulted(void) const {parse_data_point(); return _downlink_occulted;}
+        double      get_downlink_delay(void) const {parse_data_point(); return _downlink_delay;}
+        double      get_downlink_cnr(void) const {parse_data_point(); return _downlink_cnr;}
     
+        std::string get_uplink_close_criteria(void) {return _uplink_close_criteria;}
+        double      get_uplink_cnr_limit(void) {return _uplink_cnr_limit;}
+        bool        get_uplink_delay_on(void) { return _uplink_delay_on;}
+        std::string get_downlink_close_criteria(void) {return _downlink_close_criteria;}
+        double      get_downlink_cnr_limit(void) {return _downlink_cnr_limit;}
+        bool        get_downlink_delay_on(void) { return _downlink_delay_on;}
     private:
         /* Disallow these */
-        Generic_radioDataPoint(void) {};
         Generic_radioDataPoint(const Generic_radioDataPoint&) {};
         ~Generic_radioDataPoint(void) {};
 
+        /// @name Private mutators
+        //@{
+        inline void parse_data_point(void) const {if (_not_parsed) do_parsing();}
+        void do_parsing(void) const;
+        //@}
+
         /* Specific data you need to get from the data provider to the hardware model */
         /* You only get to this data through the accessors above */
-        mutable bool   _generic_radio_data_is_valid;
-        mutable double _generic_radio_data[3];
+        mutable Sim42DataPoint _dp;
+        int16_t        _uplink;
+        std::string    _uplink_close_criteria;
+        double         _uplink_cnr_limit;
+        bool           _uplink_delay_on;
+        int16_t        _downlink;
+        std::string    _downlink_close_criteria;
+        double         _downlink_cnr_limit;
+        bool           _downlink_delay_on;
+        mutable bool   _not_parsed;
+        mutable bool   _uplink_occulted;
+        mutable double _uplink_delay;
+        mutable double _uplink_cnr;
+        mutable bool   _downlink_occulted;
+        mutable double _downlink_delay;
+        mutable double _downlink_cnr;
     };
 }
 
