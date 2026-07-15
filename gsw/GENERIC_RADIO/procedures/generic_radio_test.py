@@ -5,7 +5,8 @@ for p in glob.glob('/gems/gems/openc3-cosmos-nos3-*/targets/GENERIC_RADIO/script
     if p not in sys.path:
         sys.path.append(p)
 
-from openc3.script import Group, Suite
+from openc3.script import cmd, tlm, check
+from openc3.script.suite import Suite, Group
 
 try:
     from nos3.generic_radio_lib import *
@@ -42,9 +43,12 @@ class GENERIC_RADIO_Scenario_Test(Group):
 
 
 class Generic_radio_Test(Suite):
+    def __init__(self):
+        super().__init__()
+        self.add_group(GENERIC_RADIO_Functional_Test)
+        self.add_group(GENERIC_RADIO_Scenario_Test)
+    
     def setup(self):
-        self.add_group('GENERIC_RADIO_Functional_Test', GENERIC_RADIO_Functional_Test)
-        self.add_group('GENERIC_RADIO_Scenario_Test', GENERIC_RADIO_Scenario_Test)
         safe_GENERIC_RADIO()
   
     def teardown(self):
