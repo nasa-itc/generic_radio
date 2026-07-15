@@ -5,7 +5,7 @@ for p in glob.glob('/gems/gems/openc3-cosmos-nos3-*/targets/GENERIC_RADIO/script
     if p not in sys.path:
         sys.path.append(p)
 
-from openc3.testing import Group, Suite
+from openc3.script import Group, Suite
 
 try:
     from nos3.generic_radio_lib import *
