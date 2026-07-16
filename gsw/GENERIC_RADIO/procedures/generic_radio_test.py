@@ -10,9 +10,9 @@ from openc3.script.suite import Suite, Group
 
 try:
     from nos3.generic_radio_lib import *
-    from tests.generic_radio_app_test import run_generic_radio_app_test
-    from tests.generic_radio_device_test import run_generic_radio_device_test
-    from tests.generic_radio_ast_test import run_generic_radio_ast_test
+    from nos3.generic_radio_app_test import run_generic_radio_app_test
+    from nos3.generic_radio_device_test import run_generic_radio_device_test
+    from nos3.generic_radio_ast_test import run_generic_radio_ast_test
 except ImportError:
     pass
 
