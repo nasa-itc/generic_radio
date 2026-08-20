@@ -138,9 +138,6 @@ namespace Nos3
             }
         }
         _time_bus.reset(new NosEngine::Client::Bus(_hub, connection_string, time_bus_name));
-        _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_forward_loop_message_queue, this, std::placeholders::_1));
-        _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_tcp_forward_loop_message_queue, this, std::placeholders::_1));
-        _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_forward_loop_multi_message_queue, this, std::placeholders::_1));
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Now on time bus named %s.", time_bus_name.c_str());
 
         /* Forwarding threads */
@@ -158,18 +155,31 @@ namespace Nos3
             new std::thread(&Generic_radioHardwareModel::forward_loop_multi, this, &_fsw_to, &_gsw_tlm, &_gsw2_tlm);
             
             // Two separate threads to listen for incoming commands from each GSW and forward to FSW
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1, std::ref(_udp_uplink_channel));
             // new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw2_cmd, &_fsw_ci); //gsw2 not needed 8010 already listening at 0.0.0.0
         }
         else
         {
             //UDP with cryptolib
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1);
-            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm, 0);
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_gsw_cmd, &_fsw_ci, 1, std::ref(_udp_uplink_channel));
+            new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_fsw_to, &_gsw_tlm, 0, std::ref(_udp_downlink_channel));
         }
 
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw, -1);
-        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest, -1);
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_rcv, &_prox_fsw, -1, std::ref(_prox_rx_tx_channel));
+        new std::thread(&Generic_radioHardwareModel::forward_loop, this, &_prox_fwd, &_prox_dest, -1, std::ref(_prox_fwd_dest_channel));
+
+        sleep(1); // Consider fixing this sleep-based synchronization next!
+
+        // Replace the single process_forward_loop_message_queue callback with per-channel callbacks
+        if (tcp_true != 1 && multi_gds != 1) {
+            _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_udp_uplink_channel)));
+            _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_udp_downlink_channel)));
+        } else if (multi_gds == 1) {
+            _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_udp_uplink_channel)));
+        }
+        
+        _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_prox_rx_tx_channel)));
+        _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_prox_fwd_dest_channel)));
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
@@ -438,14 +448,8 @@ namespace Nos3
         return 0;
     }
 
-
-    void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction)
+    void Generic_radioHardwareModel::forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction, ForwardingChannel& channel)
     {
-        /*
-        if direction = 0, this means going from fsw to radio to cryptolib
-        if direction = 1, this means going from cryptolib to radio to fsw
-        if direction = -1, this means crosslink between satellites
-        */
         int status;
         uint8_t sock_buffer[8192];
         size_t bytes_recvd;
@@ -475,13 +479,10 @@ namespace Nos3
         fwd_addr.sin_port = htons(fwd_sock->port);
 
         udp_init(rcv_sock);
-        if (direction == 1) {
-            _rcv_sock_udp_uplink = rcv_sock;
-            _fwd_addr_udp_uplink = fwd_addr;
-        } else {
-            _rcv_sock_udp_downlink = rcv_sock;
-            _fwd_addr_udp_downlink = fwd_addr;
-        }
+        
+        channel.rcv_sock = rcv_sock;
+        channel.fwd_addr = fwd_addr;
+        channel.direction = direction;
 
         sim_logger->debug("Generic_radioHardwareModel::forward_loop: %s:%d to %s:%d", rcv_sock->ip.c_str(), rcv_sock->port, fwd_sock->ip.c_str(), fwd_sock->port);
 
@@ -528,6 +529,7 @@ namespace Nos3
                     communication_capable = true;
                 }
             }
+            
             sim_logger->trace("Generic_radioHardwareModel::forward_loop: delay = %f", delay);
             if (status != -1 && communication_capable)
             {
@@ -537,56 +539,42 @@ namespace Nos3
                 message.time_to_send = _absolute_start_time + _sim_microseconds_per_tick * _time_bus->get_time() / 1000000.0 + delay;
                 memcpy(message.buffer, sock_buffer, bytes_recvd);
                 message.buffer_size = bytes_recvd;
-                std::lock_guard<std::mutex> lock(_message_queue_udp_mutex);
-                if (direction == 1) {
-                    _message_queue_udp_uplink.push(message);
-                } else {
-                    _message_queue_udp_downlink.push(message);
-                }
+                
+                std::lock_guard<std::mutex> lock(channel.queue_mutex);
+                channel.message_queue.push(message);
                 // Lock is released when scope ends
             }
         }
         close(rcv_sock->sockfd);
     }
 
-    void Generic_radioHardwareModel::process_forward_loop_message_queue(NosEngine::Common::SimTime time)
+    void Generic_radioHardwareModel::process_channel_queue(NosEngine::Common::SimTime time, ForwardingChannel& channel)
     {
+        // Safety check to ensure thread has populated the socket pointers
+        if (!channel.rcv_sock) return;
+
         int status;
         message_to_send_t message;
-        std::lock_guard<std::mutex> lock(_message_queue_udp_mutex);
-        while(!_message_queue_udp_uplink.empty()) {
-            message = _message_queue_udp_uplink.front();
+        
+        // Lock this specific channel's mutex
+        std::lock_guard<std::mutex> lock(channel.queue_mutex);
+        
+        while(!channel.message_queue.empty()) {
+            message = channel.message_queue.front();
             if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
-                _message_queue_udp_uplink.pop();
+                channel.message_queue.pop();
+                
                 /* Debug print */
-                sim_logger->trace("Generic_radioHardwareModel::process_forward_loop_message_queue: %s:%d received %ld bytes", 
-                    _rcv_sock_udp_uplink->ip.c_str(), _rcv_sock_udp_uplink->port, message.buffer_size);
+                sim_logger->trace("Generic_radioHardwareModel::process_channel_queue: %s:%d received %ld bytes", 
+                    channel.rcv_sock->ip.c_str(), channel.rcv_sock->port, message.buffer_size);
 
                 /* Forward */
-                status = sendto(_rcv_sock_udp_uplink->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &_fwd_addr_udp_uplink, sizeof(_fwd_addr_udp_uplink));
+                status = sendto(channel.rcv_sock->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &channel.fwd_addr, sizeof(channel.fwd_addr));
+                
                 if ((status == -1) || (status != (int)message.buffer_size))
                 {
-                    sim_logger->error("Generic_radioHardwareModel::process_forward_loop_message_queue: %s:%d only forwarded %d/%ld bytes", 
-                        _rcv_sock_udp_uplink->ip.c_str(), _rcv_sock_udp_uplink->port, status, message.buffer_size);
-                }
-            } else {
-                break;
-            }
-        }
-        while(!_message_queue_udp_downlink.empty()) {
-            message = _message_queue_udp_downlink.front();
-            if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
-                _message_queue_udp_downlink.pop();
-                /* Debug print */
-                sim_logger->trace("Generic_radioHardwareModel::forward_loop: %s:%d received %ld bytes", 
-                    _rcv_sock_udp_downlink->ip.c_str(), _rcv_sock_udp_downlink->port, message.buffer_size);
-
-                /* Forward */
-                status = sendto(_rcv_sock_udp_downlink->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &_fwd_addr_udp_downlink, sizeof(_fwd_addr_udp_downlink));
-                if ((status == -1) || (status != (int)message.buffer_size))
-                {
-                    sim_logger->error("Generic_radioHardwareModel::forward_loop: %s:%d only forwarded %d/%ld bytes", 
-                        _rcv_sock_udp_downlink->ip.c_str(), _rcv_sock_udp_downlink->port, status, message.buffer_size);
+                    sim_logger->error("Generic_radioHardwareModel::process_channel_queue: %s:%d only forwarded %d/%ld bytes", 
+                        channel.rcv_sock->ip.c_str(), channel.rcv_sock->port, status, message.buffer_size);
                 }
             } else {
                 break;
@@ -949,26 +937,26 @@ void Generic_radioHardwareModel::forward_loop_multi(udp_info_t* rcv_sock, udp_in
         close(rcv_sock->sockfd);
     }
 
-    void Generic_radioHardwareModel::process_forward_loop_multi_message_queue(NosEngine::Common::SimTime time)
+    void Generic_radioHardwareModel::process_forward_loop_multi_message_queue(NosEngine::Common::SimTime time, ForwardingChannel& channel)
     {
         int status;
         message_to_send_t message;
-        std::lock_guard<std::mutex> lock(_message_queue_multi_downlink_mutex);
-        while(!_message_queue_multi_downlink.empty()) {
-            message = _message_queue_multi_downlink.front();
+        std::lock_guard<std::mutex> lock(channel.queue_mutex);
+        while(!channel.message_queue.empty()) {
+            message = channel.message_queue.front();
             if (message.time_to_send <= _absolute_start_time + _sim_microseconds_per_tick * time / 1000000.0) {
-                _message_queue_multi_downlink.pop();
+                channel.message_queue.pop();
                 //debuging multi loop
-                sim_logger->trace("process_forward_loop_multi_message_queue: Received %ld bytes from FSW on port %d", message.buffer_size, _rcv_sock_multi_downlink->port);
+                sim_logger->trace("process_forward_loop_multi_message_queue: Received %ld bytes from FSW on port %d", message.buffer_size, channel.rcv_sock->port);
 
                 //Forwared to gsw1
-                status = sendto(_rcv_sock_multi_downlink->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &_fwd_addr1_multi_downlink, sizeof(_fwd_addr1_multi_downlink));
+                status = sendto(channel.rcv_sock->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &channel.fwd_addr, sizeof(channel.fwd_addr));
                 if ((status == -1) || (status != (int)message.buffer_size)) {
                     sim_logger->error("process_forward_loop_multi_message_queue: Failed to send to GSW1");
                 }
 
                 // forward to gsw2
-                status = sendto(_rcv_sock_multi_downlink->sockfd, message.buffer, message.buffer_size, 0, (sockaddr*) &_fwd_addr2_multi_downlink, sizeof(_fwd_addr2_multi_downlink));
+                status = sendto(channel.rcv_sock->clientfd, message.buffer, message.buffer_size, 0, (sockaddr*) &channel.fwd_addr, sizeof(channel.fwd_addr));
                 if ((status == -1) || (status != (int)message.buffer_size)) {
                     sim_logger->error("process_forward_loop_multi_message_queue: Failed to send to GSW2");
                 }        
