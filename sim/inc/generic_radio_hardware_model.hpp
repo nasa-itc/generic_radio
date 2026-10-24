@@ -61,16 +61,29 @@ namespace Nos3
         //     int port;
         // } tcp_info_t;
 
+        struct message_to_send_t {
+            uint8_t buffer[8192];
+            size_t buffer_size;
+            double time_to_send;
+        };
+        struct ForwardingChannel {
+            udp_info_t* rcv_sock = nullptr;
+            struct sockaddr_in fwd_addr = {};
+            std::queue<message_to_send_t> message_queue;
+            std::mutex queue_mutex;
+            int direction = 0;
+        };
+
         int32_t host_to_ip(const char * hostname, char* ip);
         int32_t udp_init(udp_info_t* sock);
         int32_t tcp_init(udp_info_t* sock);
-        void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
-        void process_forward_loop_message_queue(NosEngine::Common::SimTime time);
+        void forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction, ForwardingChannel& channel);
+        void process_channel_queue(NosEngine::Common::SimTime time, ForwardingChannel& channel);
         void tcp_forward_loop(udp_info_t* rcv_sock, udp_info_t* fwd_sock, int direction);
         void process_tcp_forward_loop_message_queue(NosEngine::Common::SimTime time);
         void setup_fwd_addr(udp_info_t* sock, struct sockaddr_in& addr);
         void forward_loop_multi(udp_info_t* rcv_sock, udp_info_t* fwd_sock1, udp_info_t* fwd_sock2);
-        void process_forward_loop_multi_message_queue(NosEngine::Common::SimTime time);
+        void process_forward_loop_multi_message_queue(NosEngine::Common::SimTime time, ForwardingChannel& channel);
 
         udp_info_t                                          _fsw_ci;
         udp_info_t                                          _fsw_to;
@@ -94,24 +107,17 @@ namespace Nos3
         std::uint32_t                                       _count;
         std::uint32_t                                       _config;
         std::uint32_t                                       _prox_signal;
-        struct message_to_send_t {
-            uint8_t buffer[8192];
-            size_t buffer_size;
-            double time_to_send;
-        };
-        std::queue<message_to_send_t>                       _message_queue_udp_uplink; 
-        std::queue<message_to_send_t>                       _message_queue_udp_downlink;
-        std::mutex                                          _message_queue_udp_mutex;
+
+        ForwardingChannel _udp_uplink_channel;
+        ForwardingChannel _udp_downlink_channel;
+        ForwardingChannel _prox_rx_tx_channel;
+        ForwardingChannel _prox_fwd_dest_channel;
         std::queue<message_to_send_t>                       _message_queue_tcp_uplink; 
         std::mutex                                          _message_queue_tcp_uplink_mutex;
         std::queue<message_to_send_t>                       _message_queue_tcp_downlink;
         std::mutex                                          _message_queue_tcp_downlink_mutex;
         std::queue<message_to_send_t>                       _message_queue_multi_downlink;
         std::mutex                                          _message_queue_multi_downlink_mutex;
-        udp_info_t*                                         _rcv_sock_udp_uplink;
-        struct sockaddr_in                                  _fwd_addr_udp_uplink;
-        udp_info_t*                                         _rcv_sock_udp_downlink;
-        struct sockaddr_in                                  _fwd_addr_udp_downlink;
         udp_info_t*                                         _rcv_sock_tcp_downlink;
         udp_info_t*                                         _fwd_sock_tcp_downlink;
         udp_info_t*                                         _rcv_sock_tcp_uplink;
