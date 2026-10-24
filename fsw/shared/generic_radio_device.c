@@ -67,7 +67,9 @@ int32_t GENERIC_RADIO_ProximityForward(socket_info_t *device, uint16_t scid, uin
 #endif
 
     /* Write command */
-    status = socket_send(device, data, data_len, &bytes_sent, GENERIC_RADIO_CFG_DEVICE_IP,
+    OS_printf("GENERIC_RADIO_ProximityForward: Sending %d bytes to %s:%d\n", 
+          data_len, GENERIC_RADIO_CFG_DEVICE_IP_PROX, GENERIC_RADIO_CFG_UDP_FSW_TO_PROX);
+    status = socket_send(device, data, data_len, &bytes_sent, GENERIC_RADIO_CFG_DEVICE_IP_PROX,
                          GENERIC_RADIO_CFG_UDP_FSW_TO_PROX);
     if (bytes_sent != data_len)
     {
