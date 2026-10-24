@@ -191,6 +191,10 @@ namespace Nos3
         
         _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_prox_rx_tx_channel)));
         _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_channel_queue, this, std::placeholders::_1, std::ref(_prox_fwd_dest_channel)));
+        // TCP mode (default): drain the TCP uplink/downlink queues each time tick
+        if (tcp_true == 1) {
+            _time_bus->add_time_tick_callback(std::bind(&Generic_radioHardwareModel::process_tcp_forward_loop_message_queue, this, std::placeholders::_1));
+        }
 
         /* Construction complete */
         sim_logger->info("Generic_radioHardwareModel::Generic_radioHardwareModel:  Construction complete.");
